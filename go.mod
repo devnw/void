@@ -11,6 +11,7 @@ require (
 	go.devnw.com/event v1.0.2 // indirect
 	go.devnw.com/ttl v1.1.2 // indirect
 	go.devnw.com/validator v1.0.8 // indirect
+	go.structs.dev/gen v1.0.1 // indirect
 	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/net v0.0.0-20210726213435-c6fcb2dbf985 // indirect
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect

@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/miekg/dns"
@@ -46,7 +47,8 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 
 	dns.HandleFunc(".", (&local{
 		ctx,
-		ttl.NewCache[string, net.IP](ctx, time.Minute, true),
+		map[string]net.IP{},
+		sync.RWMutex{},
 	}).Handler(
 		(&void{
 			ctx,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 
 	"github.com/miekg/dns"
 	"go.devnw.com/ttl"
@@ -12,17 +13,21 @@ import (
 
 // TODO: Add regex handler
 
-// TODO: Add wildcard handler
+// TODO: Convert wildcard to regex
+// (\.|^)domain\.tld$
 
 type HandleFunc func(dns.ResponseWriter, *dns.Msg)
 
 type local struct {
-	ctx   context.Context
-	local *ttl.Cache[string, net.IP]
+	ctx     context.Context
+	local   map[string]net.IP
+	localMu sync.RWMutex
 }
 
 func (l *local) Handler(next HandleFunc) HandleFunc {
-	l.local.Set(l.ctx, "cisco1.kolhar.net", net.ParseIP("10.10.10.10"))
+	l.localMu.Lock()
+	l.local["cisco1.kolhar.net"] = net.ParseIP("10.10.10.10")
+	l.localMu.Unlock()
 
 	return func(w dns.ResponseWriter, req *dns.Msg) {
 		record := strings.TrimSuffix(req.Question[0].Name, ".")
@@ -30,7 +35,9 @@ func (l *local) Handler(next HandleFunc) HandleFunc {
 		fmt.Printf("%s\n", record)
 
 		// Found in allow list, continue with next handler
-		addr, ok := l.local.Get(l.ctx, record)
+		l.localMu.RLock()
+		addr, ok := l.local[record]
+		l.localMu.RUnlock()
 		if !ok || addr == nil {
 			next(w, req)
 			return
