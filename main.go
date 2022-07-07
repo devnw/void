@@ -51,9 +51,9 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 		sync.RWMutex{},
 	}).Handler(
 		(&void{
-			ctx,
-			ttl.NewCache[string, bool](ctx, time.Minute, true),
-			ttl.NewCache[string, bool](ctx, time.Minute, true),
+			ctx:   ctx,
+			allow: map[string]*Record{},
+			deny:  map[string]*Record{},
 		}).Handler(
 			(&cached{
 				ctx,

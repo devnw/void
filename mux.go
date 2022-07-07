@@ -60,28 +60,45 @@ func (l *local) Handler(next HandleFunc) HandleFunc {
 }
 
 type void struct {
-	ctx   context.Context
-	allow *ttl.Cache[string, bool]
-	deny  *ttl.Cache[string, bool]
+	ctx context.Context
+
+	allow   map[string]*Record
+	allowMu sync.RWMutex
+
+	deny   map[string]*Record
+	denyMu sync.RWMutex
 }
 
 func (v *void) Handler(next HandleFunc) HandleFunc {
+	d := &Record{
+		Domain:   "www.google.com",
+		Type:     DIRECT,
+		Category: "advertising",
+		Tags:     []string{"advertising", "google"},
+	}
 
-	v.deny.Set(v.ctx, "www.google.com", true)
-	v.allow.Set(v.ctx, "google.com", true)
+	a := &Record{
+		Domain:   "google.com",
+		Type:     DIRECT,
+		Category: "advertising",
+		Tags:     []string{"advertising", "google"},
+	}
+
+	v.deny[d.Domain] = d
+	v.allow[a.Domain] = a
 
 	return func(w dns.ResponseWriter, req *dns.Msg) {
 		record := strings.TrimSuffix(req.Question[0].Name, ".")
 
 		// Found in allow list, continue with next handler
-		allow, ok := v.allow.Get(v.ctx, record)
-		if ok && allow {
+		_, ok := v.allow[record]
+		if ok {
 			next(w, req)
 			return
 		}
 
-		deny, ok := v.deny.Get(v.ctx, record)
-		if !ok || !deny {
+		_, ok = v.deny[record]
+		if !ok {
 			next(w, req)
 			return
 		}
