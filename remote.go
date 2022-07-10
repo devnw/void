@@ -9,7 +9,12 @@ import (
 // Get returns the body of the response for the given url
 // by making an HTTP GET request.
 func Get(ctx context.Context, url string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		url,
+		http.NoBody,
+	)
 	if err != nil {
 		return nil, err
 	}

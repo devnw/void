@@ -16,6 +16,8 @@ import (
 // TODO: Convert wildcard to regex
 // (\.|^)domain\.tld$
 
+// HandleFunc is a type alias for the handler function
+// from the dns package
 type HandleFunc func(dns.ResponseWriter, *dns.Msg)
 
 type local struct {
@@ -55,7 +57,11 @@ func (l *local) Handler(next HandleFunc) HandleFunc {
 			A: addr.To4(),
 		})
 
-		w.WriteMsg(res)
+		err := w.WriteMsg(res)
+		if err != nil {
+			// TODO: Handle error
+			fmt.Printf("Error: %s\n", err)
+		}
 	}
 }
 
@@ -84,8 +90,13 @@ func (v *void) Handler(next HandleFunc) HandleFunc {
 		Tags:     []string{"advertising", "google"},
 	}
 
+	v.denyMu.Lock()
 	v.deny[d.Domain] = d
+	v.denyMu.Unlock()
+
+	v.allowMu.Lock()
 	v.allow[a.Domain] = a
+	v.allowMu.Unlock()
 
 	return func(w dns.ResponseWriter, req *dns.Msg) {
 		record := strings.TrimSuffix(req.Question[0].Name, ".")
@@ -110,6 +121,7 @@ func (v *void) Handler(next HandleFunc) HandleFunc {
 		err := w.WriteMsg(res)
 		if err != nil {
 			// TODO:
+			fmt.Printf("Error: %s\n", err)
 		}
 	}
 }
@@ -132,7 +144,11 @@ func (c *cached) Handler(next HandleFunc) HandleFunc {
 
 		resp := r.SetReply(req)
 
-		w.WriteMsg(resp)
+		err := w.WriteMsg(resp)
+		if err != nil {
+			// TODO: Handle error
+			fmt.Printf("Error: %s\n", err)
+		}
 	}
 }
 
@@ -148,7 +164,10 @@ type interceptor struct {
 func (i *interceptor) WriteMsg(res *dns.Msg) error {
 	record := strings.TrimSuffix(res.Question[0].Name, ".")
 
-	i.cache.Set(i.ctx, record, res)
+	err := i.cache.Set(i.ctx, record, res)
+	if err != nil {
+		return err
+	}
 
 	return i.ResponseWriter.WriteMsg(res)
 }

@@ -12,11 +12,16 @@ import (
 	stream "go.atomizer.io/stream"
 )
 
+// Host defines the structure of a host record
+// from a hosts file similar to /etc/hosts
+// Example: 0.0.0.0 example.com # comment
 type Host struct {
-	Domain string `json:"domain"`
-	IP     net.IP `json:"ip"`
+	Domain  string `json:"domain"`
+	IP      net.IP `json:"ip"`
+	Comment string `json:"comment"`
 }
 
+// Hosts is a slice of Hosts
 type Hosts []Host
 
 func (h Hosts) Len() int {
@@ -31,6 +36,9 @@ func (h Hosts) Swap(i, j int) {
 	h[i], h[j] = h[j], h[i]
 }
 
+const columns = 2
+
+// ReadHosts reads host files from the provided directories
 func ReadHosts(ctx context.Context, paths ...string) []Host {
 	var hosts []Host
 	files := make(chan string)
@@ -60,22 +68,39 @@ func ReadHosts(ctx context.Context, paths ...string) []Host {
 				continue
 			}
 
-			cols := strings.Split(string(data), " ")
-			if len(cols) != 2 {
+			var comment string
+			commentIndex := strings.Index(line, "#")
+			if commentIndex != -1 {
+				// Pull the comment for the line for
+				// later use.
+				comment = strings.TrimSpace(
+					line[commentIndex+1:],
+				)
+
+				// Trim the comment from the line.
+				line = strings.TrimSpace(
+					line[:commentIndex],
+				)
+			}
+
+			cols := strings.Split(line, " ")
+			if len(cols) != columns {
 				continue
 			}
 
 			hosts = append(hosts, Host{
-				IP:     net.ParseIP(cols[0]),
-				Domain: cols[1],
+				IP:      net.ParseIP(cols[0]),
+				Domain:  cols[1],
+				Comment: comment,
 			})
 		}
-
 	}
 
 	return hosts
 }
 
+// Extract pulls the record lines from host files and sends them
+// to the given channel.
 func Extract(ctx context.Context, in <-chan []byte) (<-chan string, error) {
 	out := make(chan string)
 
@@ -96,14 +121,15 @@ func Extract(ctx context.Context, in <-chan []byte) (<-chan string, error) {
 // extract returns an intercept function which bypasses the direct
 // output of the stream and instead sends the output to the given
 // channel so that it can fan-out to other streams.
+// nolint:gocritic
 func extract(out chan<- string) stream.InterceptFunc[[]byte, struct{}] {
 	return func(ctx context.Context, body []byte) (struct{}, bool) {
-		var line string
+		var nextline string
 		for _, b := range body {
 			if b == '\n' {
-
 				// Trim any spaces
-				line = strings.TrimSpace(line)
+				line := strings.TrimSpace(nextline)
+				nextline = "" // Reset the buffer on newlines
 
 				// Ignore empty or commented lines
 				if line == "" ||
@@ -115,12 +141,11 @@ func extract(out chan<- string) stream.InterceptFunc[[]byte, struct{}] {
 				case <-ctx.Done():
 					return struct{}{}, false
 				case out <- line:
-					continue
 				}
 
 				continue
 			}
-			line += string(b)
+			nextline += string(b)
 		}
 
 		return struct{}{}, false

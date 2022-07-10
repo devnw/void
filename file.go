@@ -12,6 +12,9 @@ import (
 	stream "go.atomizer.io/stream"
 )
 
+// ReadFiles reads the files at the path provided
+// and returns a channel of io.ReadCloser where it
+// deposits the open file
 func ReadFiles(
 	ctx context.Context,
 	files <-chan string,
@@ -40,6 +43,8 @@ func ReadFiles(
 	return out
 }
 
+// ReadDirectory recursively reads through the directory structure
+// providing a channel of file paths
 func ReadDirectory(ctx context.Context, dir string) <-chan string {
 	out := make(chan string)
 

@@ -11,6 +11,8 @@ import (
 	stream "go.atomizer.io/stream"
 )
 
+// Record defines the void-specific struct for a DNS record
+// indicating the type as well as category, etc...
 type Record struct {
 	Domain   string   `json:"domain"`
 	Type     Type     `json:"type"`
@@ -20,6 +22,7 @@ type Record struct {
 	Source   string   `json:"source"`
 }
 
+// MarshalJSON implements the json.Marshaler interface
 func (r *Record) MarshalJSON() ([]byte, error) {
 	d := struct {
 		Domain   string   `json:"domain"`
@@ -38,6 +41,7 @@ func (r *Record) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d)
 }
 
+// UnmarshalJSON implements the json.Unmarshaler interface
 func (r *Record) UnmarshalJSON(data []byte) error {
 	d := struct {
 		Domain   string   `json:"domain"`
@@ -60,6 +64,8 @@ func (r *Record) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Records reads files from the provided list of directories
+// and returns a slice of records
 func Records(ctx context.Context, paths ...string) []Record {
 	var records []Record
 	files := make(chan string)

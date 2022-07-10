@@ -65,7 +65,7 @@ linters-settings:
 linters:
   enable:
     - bodyclose
-    - deadcode
+      # - deadcode
     - depguard
     - dogsled
     - dupl
@@ -97,9 +97,12 @@ linters:
     - typecheck
     - unconvert
     - unparam
-    - unused
+      # - unused
     - varcheck
     - whitespace
+  disable:
+    - deadcode
+    - unused
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source

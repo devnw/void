@@ -33,6 +33,7 @@ func main() {
 	err := root.Execute()
 	if err != nil {
 		fmt.Println(err)
+		// nolint:gocritic
 		os.Exit(1)
 	}
 }
@@ -70,7 +71,12 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 
 					log.Printf("%+v\n", res)
 					log.Printf("%+v\n", rtt)
-					w.WriteMsg(res)
+
+					err = w.WriteMsg(res)
+					if err != nil {
+						// TODO: Handle error
+						fmt.Printf("Error: %s\n", err)
+					}
 				}),
 		),
 	))
