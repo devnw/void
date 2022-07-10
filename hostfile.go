@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	stream "go.atomizer.io/stream"
 )
@@ -16,7 +17,21 @@ type Host struct {
 	IP     net.IP `json:"ip"`
 }
 
-func Hosts(ctx context.Context, paths ...string) []Host {
+type Hosts []Host
+
+func (h Hosts) Len() int {
+	return len(h)
+}
+
+func (h Hosts) Less(i, j int) bool {
+	return h[i].Domain < h[j].Domain
+}
+
+func (h Hosts) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+func ReadHosts(ctx context.Context, paths ...string) []Host {
 	var hosts []Host
 	files := make(chan string)
 
@@ -55,7 +70,59 @@ func Hosts(ctx context.Context, paths ...string) []Host {
 				Domain: cols[1],
 			})
 		}
+
 	}
 
 	return hosts
+}
+
+func Extract(ctx context.Context, in <-chan []byte) (<-chan string, error) {
+	out := make(chan string)
+
+	s := stream.Scaler[[]byte, struct{}]{
+		Wait: time.Nanosecond,
+		Life: time.Millisecond,
+		Fn:   extract(out),
+	}
+
+	_, err := s.Exec(ctx, in)
+	if err != nil {
+		panic(err)
+	}
+
+	return out, nil
+}
+
+// extract returns an intercept function which bypasses the direct
+// output of the stream and instead sends the output to the given
+// channel so that it can fan-out to other streams.
+func extract(out chan<- string) stream.InterceptFunc[[]byte, struct{}] {
+	return func(ctx context.Context, body []byte) (struct{}, bool) {
+		var line string
+		for _, b := range body {
+			if b == '\n' {
+
+				// Trim any spaces
+				line = strings.TrimSpace(line)
+
+				// Ignore empty or commented lines
+				if line == "" ||
+					strings.HasPrefix(line, "#") {
+					continue
+				}
+
+				select {
+				case <-ctx.Done():
+					return struct{}{}, false
+				case out <- line:
+					continue
+				}
+
+				continue
+			}
+			line += string(b)
+		}
+
+		return struct{}{}, false
+	}
 }
