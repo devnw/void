@@ -20,6 +20,7 @@ type Record struct {
 	Category string   `json:"category"`
 	Tags     []string `json:"tags"`
 	Source   string   `json:"source"`
+	Comment  string   `json:"comment"`
 }
 
 // MarshalJSON implements the json.Marshaler interface

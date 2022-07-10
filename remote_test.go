@@ -10,7 +10,12 @@ func Test_Get(t *testing.T) {
 	defer cancel()
 
 	in := make(chan []byte)
-	out, err := Extract(context.Background(), in)
+	lines, err := Extract(context.Background(), in)
+	if err != nil {
+		t.Error(err)
+	}
+
+	hosts, err := GetHost(context.Background(), lines)
 	if err != nil {
 		t.Error(err)
 	}
@@ -28,12 +33,12 @@ func Test_Get(t *testing.T) {
 		select {
 		case <-ctx.Done():
 			return
-		case line, ok := <-out:
+		case host, ok := <-hosts:
 			if !ok {
 				return
 			}
 
-			t.Log(line)
+			t.Logf("%+v\n", host)
 		}
 	}
 }

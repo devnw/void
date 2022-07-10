@@ -15,10 +15,29 @@ import (
 // Host defines the structure of a host record
 // from a hosts file similar to /etc/hosts
 // Example: 0.0.0.0 example.com # comment
+//
+// https://www.ibm.com/docs/en/aix/7.2?topic=formats-hosts-file-format-tcpip
+//
+// NOTE: According to the link above multiple domains are allowed per IP
+// as long as they're on the same line, space separated.
+//
+// TODO: Determine if this is something to support (i.e. local dns resolution)
 type Host struct {
 	Domain  string `json:"domain"`
 	IP      net.IP `json:"ip"`
 	Comment string `json:"comment"`
+}
+
+func (h *Host) Record(src, cat string, tags ...string) *Record {
+	return &Record{
+		Domain:   h.Domain,
+		IP:       h.IP,
+		Comment:  h.Comment,
+		Type:     DIRECT,
+		Source:   src,
+		Category: cat,
+		Tags:     tags,
+	}
 }
 
 // Hosts is a slice of Hosts
@@ -150,4 +169,45 @@ func extract(out chan<- string) stream.InterceptFunc[[]byte, struct{}] {
 
 		return struct{}{}, false
 	}
+}
+
+func GetHost(ctx context.Context, in <-chan string) (<-chan *Host, error) {
+	s := stream.Scaler[string, *Host]{
+		Wait: time.Nanosecond,
+		Life: time.Millisecond,
+		Fn: func(ctx context.Context, line string) (*Host, bool) {
+			var comment string
+			commentIndex := strings.Index(line, "#")
+			if commentIndex != -1 {
+				// Pull the comment for the line for
+				// later use.
+				comment = strings.TrimSpace(
+					line[commentIndex+1:],
+				)
+
+				// Trim the comment from the line.
+				line = strings.TrimSpace(
+					line[:commentIndex],
+				)
+			}
+
+			cols := strings.Split(line, " ")
+			if len(cols) != columns {
+				return nil, false
+			}
+
+			return &Host{
+				IP:      net.ParseIP(cols[0]),
+				Domain:  cols[1],
+				Comment: comment,
+			}, true
+		},
+	}
+
+	out, err := s.Exec(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
