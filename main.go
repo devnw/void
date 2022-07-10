@@ -22,7 +22,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	port := 5300 //53
+	port := 5300 // 53
 	root := &cobra.Command{
 		Use:     "void [flags]",
 		Short:   "void is a simple cluster based dns provider/sink",

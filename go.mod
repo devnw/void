@@ -7,6 +7,7 @@ require (
 	github.com/miekg/dns v1.1.50 // indirect
 	github.com/spf13/cobra v1.5.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	go.atomizer.io/stream v1.0.4 // indirect
 	go.devnw.com/alog v1.1.1 // indirect
 	go.devnw.com/event v1.0.2 // indirect
 	go.devnw.com/ttl v1.1.2 // indirect
