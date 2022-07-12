@@ -34,6 +34,8 @@ func (r *Request) Block() error {
 	case <-r.ctx.Done():
 		return r.ctx.Err()
 	default:
+		r.cancel()
+
 		// Send to the void
 		return r.w.WriteMsg(
 			(&dns.Msg{}).SetRcode(r.r, dns.RcodeNameError),
@@ -44,22 +46,24 @@ func (r *Request) Block() error {
 // Answer returns a response for a specific domain request with the
 // provided IP address
 func (r *Request) Answer(ip net.IP) (*dns.Msg, error) {
-	res := &dns.Msg{}
-	res.SetReply(r.r)
-	res.Answer = append(res.Answer, &dns.A{
-		Hdr: dns.RR_Header{
-			Name:   r.r.Question[0].Name,
-			Rrtype: dns.TypeA,
-			Class:  dns.ClassINET,
-			Ttl:    60,
-		},
-		A: ip,
-	})
-
 	select {
 	case <-r.ctx.Done():
 		return nil, r.ctx.Err()
 	default:
+		r.cancel()
+
+		res := &dns.Msg{}
+		res.SetReply(r.r)
+		res.Answer = append(res.Answer, &dns.A{
+			Hdr: dns.RR_Header{
+				Name:   r.r.Question[0].Name,
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    60,
+			},
+			A: ip,
+		})
+
 		return res, r.w.WriteMsg(res)
 	}
 }

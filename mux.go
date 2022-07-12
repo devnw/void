@@ -11,6 +11,36 @@ import (
 	"go.devnw.com/ttl"
 )
 
+// Convert returns a handler for the DNS server as well as a
+// read-only channel of requests to be pushed down the pipeline
+func Convert(pCtx context.Context) (HandleFunc, <-chan *Request) {
+	out := make(chan *Request)
+	go func() {
+		// Cleanup the channel when the system exists
+		<-pCtx.Done()
+		close(out)
+	}()
+
+	return func(w dns.ResponseWriter, req *dns.Msg) {
+		ctx, cancel := context.WithCancel(pCtx)
+		r := &Request{
+			ctx:    ctx,
+			cancel: cancel,
+			w:      w,
+			r:      req,
+		}
+
+		select {
+		case <-pCtx.Done():
+			w.Close()
+
+		case out <- r:
+			// TODO: Log request?
+		}
+
+	}, out
+}
+
 // TODO: Add regex handler
 
 // TODO: Convert wildcard to regex

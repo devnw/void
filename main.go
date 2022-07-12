@@ -4,16 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
 	"go.devnw.com/alog"
-	"go.devnw.com/ttl"
 )
 
 var version string
@@ -39,53 +36,78 @@ func main() {
 }
 
 func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
-	server := &dns.Server{
-		Addr: ":" + strconv.Itoa(port),
-		Net:  "udp",
-	}
+	return func(cmd *cobra.Command, _ []string) {
+		server := &dns.Server{
+			Addr: ":" + strconv.Itoa(port),
+			Net:  "udp",
+		}
 
-	client := &dns.Client{}
+		//	client := &dns.Client{}
 
-	dns.HandleFunc(".", (&local{
-		ctx,
-		map[string]net.IP{},
-		sync.RWMutex{},
-	}).Handler(
-		(&void{
-			ctx:   ctx,
-			allow: map[string]*Record{},
-			deny:  map[string]*Record{},
-		}).Handler(
-			(&cached{
-				ctx,
-				ttl.NewCache[string, *dns.Msg](ctx, time.Minute, true),
-			}).Handler(
-				func(w dns.ResponseWriter, req *dns.Msg) {
-					log.Printf("%s\n", req.Question[0].Name)
+		handler, requests := Convert(ctx)
 
-					res, rtt, err := client.Exchange(req, "1.1.1.1:53")
-					if err != nil {
-						log.Printf("%s\n", err)
+		// Register the handler into the dns server
+		dns.HandleFunc(".", handler)
+
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case r, ok := <-requests:
+					if !ok {
 						return
 					}
 
-					log.Printf("%+v\n", res)
-					log.Printf("%+v\n", rtt)
-
-					err = w.WriteMsg(res)
+					fmt.Println(r.Record())
+					err := r.Block()
 					if err != nil {
-						// TODO: Handle error
-						fmt.Printf("Error: %s\n", err)
+						fmt.Printf("ERROR: %s\n", err)
 					}
-				}),
-		),
-	))
+				}
+			}
+		}()
 
-	err := server.ListenAndServe()
-	if err != nil {
-		log.Fatal(err)
+		err := server.ListenAndServe()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		//		(&local{
+		//		ctx,
+		//		map[string]net.IP{},
+		//		sync.RWMutex{},
+		//	}).Handler(
+		//		(&void{
+		//			ctx:   ctx,
+		//			allow: map[string]*Record{},
+		//			deny:  map[string]*Record{},
+		//		}).Handler(
+		//			(&cached{
+		//				ctx,
+		//				ttl.NewCache[string, *dns.Msg](ctx, time.Minute, true),
+		//			}).Handler(
+		//				func(w dns.ResponseWriter, req *dns.Msg) {
+		//					log.Printf("%s\n", req.Question[0].Name)
+		//
+		//					res, rtt, err := client.Exchange(req, "1.1.1.1:53")
+		//					if err != nil {
+		//						log.Printf("%s\n", err)
+		//						return
+		//					}
+		//
+		//					log.Printf("%+v\n", res)
+		//					log.Printf("%+v\n", rtt)
+		//
+		//					err = w.WriteMsg(res)
+		//					if err != nil {
+		//						// TODO: Handle error
+		//						fmt.Printf("Error: %s\n", err)
+		//					}
+		//				}),
+		//		),
+		//	))
 	}
-	return nil
 }
 
 func configLogger(ctx context.Context, prefix string) error {
