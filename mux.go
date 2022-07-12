@@ -33,7 +33,6 @@ func (l *local) Intercept(
 	ctx context.Context,
 	req *Request,
 ) (*Request, bool) {
-
 	// Found in allow list, continue with next handler
 	l.localMu.RLock()
 	ip, ok := l.local[req.Record()]
@@ -50,7 +49,6 @@ func (l *local) Intercept(
 	}
 
 	return req, true
-
 }
 
 func (l *local) Handler(next HandleFunc) HandleFunc {
