@@ -28,6 +28,7 @@ type Host struct {
 	Comment string `json:"comment"`
 }
 
+// Record converts a host record to a void domain record
 func (h *Host) Record(src, cat string, tags ...string) *Record {
 	return &Record{
 		Domain:   h.Domain,
@@ -171,6 +172,11 @@ func extract(out chan<- string) stream.InterceptFunc[[]byte, struct{}] {
 	}
 }
 
+// GetHost parses the line of host file returning the first host
+//
+// TODO: Add support for multiple domains on a single IP as indicated
+// at the link below:
+// https://www.ibm.com/docs/en/aix/7.2?topic=formats-hosts-file-format-tcpip
 func GetHost(ctx context.Context, in <-chan string) (<-chan *Host, error) {
 	s := stream.Scaler[string, *Host]{
 		Wait: time.Nanosecond,
