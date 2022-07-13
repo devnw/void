@@ -9,23 +9,36 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/miekg/dns"
 )
 
+var protoReg = `(tcp|udp|tcp-tls){0,1}(?:\:\/\/){0,1}`
+var ipv4Reg = `(?:[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})`
+var ipv6Reg = `(?:(?:[0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(?::[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(?:ffff(?::0{1,4}){0,1}:){0,1}(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])|(?:[0-9a-fA-F]{1,4}:){1,4}:(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9]))`
+var portReg = `\:{0,1}([0-9]{1,5}){0,1}`
+
 // addrReg is a regular expression for matching the supported
 // address formats
 // <proto>://<server>[:<port>]
 var addrReg = regexp.MustCompile(
-	`^(tcp|udp|tcp-tls){1}:\/\/([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\:{0,1}([0-9]{1,5}){0,1}$`,
+	fmt.Sprintf(`^%s(%s|%s)%s$`, protoReg, ipv4Reg, ipv6Reg, portReg),
 )
 
+// Network is a type alias of string for categorizing
+// protocols for a DNS server
 type Network string
 
 const (
+	// UDP is the network type for UDP
 	UDP Network = "udp"
+
+	// TCP is the network type for TCP
 	TCP Network = "tcp"
+
+	// TLS is the network type for TLS over TCP
 	TLS Network = "tcp-tls"
 )
 
@@ -64,19 +77,37 @@ func TLSConfig(ca string) (*tls.Config, error) {
 
 // Up creates a new DNS client to an Upstream server as defined
 // by the address. The address should follow the format:
-func Up(ctx context.Context, address string) error {
-	matches := addrReg.FindStringSubmatch(address)
-	if len(matches) != 4 {
-		return errors.New("invalid address")
+func Up(ctx context.Context, addresses ...string) ([]Upstream, error) {
+	upstreams := make([]Upstream, 0, len(addresses))
+
+	for _, address := range addresses {
+		matches := addrReg.FindStringSubmatch(address)
+		if len(matches) != 4 {
+			return nil, fmt.Errorf("invalid address [%s]", address)
+		}
+
+		network := UDP
+		if matches[1] != "" {
+			network = Network(matches[1])
+		}
+
+		port := 53
+		if matches[3] != "" {
+			var err error
+			port, err = strconv.Atoi(matches[3])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		upstreams = append(upstreams, Upstream{
+			Network: network,
+			Address: net.ParseIP(matches[2]),
+			Port:    uint16(port),
+		})
 	}
 
-	network := Network(matches[1])
-	server := matches[2]
-	port := matches[3]
-
-	fmt.Printf("%s %s %s\n", network, server, port)
-
-	return nil
+	return upstreams, nil
 }
 
 type Upstream struct {
@@ -113,6 +144,5 @@ func (u *Upstream) Intercept(
 	ctx context.Context,
 	req *Request,
 ) (*Request, bool) {
-
 	return req, true
 }
