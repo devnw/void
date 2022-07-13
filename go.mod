@@ -3,6 +3,7 @@ module go.avoid.dev/void
 go 1.18
 
 require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/miekg/dns v1.1.50 // indirect
 	github.com/spf13/cobra v1.5.0 // indirect

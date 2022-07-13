@@ -37,7 +37,6 @@ func Convert(pCtx context.Context) (HandleFunc, <-chan *Request) {
 		case out <- r:
 			// TODO: Log request?
 		}
-
 	}, out
 }
 
