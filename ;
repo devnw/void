@@ -148,52 +148,14 @@ type Upstream struct {
 	// 		"tcp-tls"
 	proto Protocol
 
+	// Time before reconnecting the client
+	reconnect time.Duration
+
 	// Client instance
 	client *dns.Client
 
 	// upstream connection
-	conn <-chan *dns.Conn
-
-	// Time before reconnecting the client
-	reconnect time.Duration
-}
-
-func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
-	out := make(chan *dns.Conn)
-
-	go func() {
-		ticker := time.NewTicker(u.reconnect)
-		defer ticker.Stop()
-		defer close(out)
-
-		// Initial connection
-		conn, err := u.client.DialContext(ctx, u.String())
-		if err != nil {
-			return
-		}
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				// Attempt Reconnect
-				newConn, err := u.client.DialContext(ctx, u.String())
-				if err != nil {
-					continue
-				}
-
-				// Close the connection
-				conn.Close()
-
-				// Update the connection
-				conn = newConn
-			case out <- conn:
-			}
-		}
-	}()
-
-	return out
+	conn *dns.Conn
 }
 
 func (u *Upstream) String() string {
@@ -205,36 +167,19 @@ func (u *Upstream) String() string {
 	)
 }
 
-// TODO: Determine if upstream should be sequential or
-// in parallel
-
 func (u *Upstream) Intercept(
 	ctx context.Context,
 	req *Request,
 ) (*Request, bool) {
-	select {
-	case <-ctx.Done():
-		return nil, false
-	case conn, ok := <-u.conn:
-		if !ok {
-			return nil, false
-		}
-
-		// TODO: add logging and rtt calculation
-
-		// Send the Request
-		resp, _, err := u.client.ExchangeWithConn(req.r, conn)
+	// if the upstream is not connected,
+	// attempt to connected
+	if u.conn == nil {
+		u.conn, err = u.client.DialContext(ctx, u.proto, u.String())
 		if err != nil {
 			return nil, false
 		}
-
-		err = req.w.WriteMsg(resp)
-		if err != nil {
-			return nil, false
-		}
-
-		return req, false
 	}
 
-	return req, false
+
+	return req, true
 }
