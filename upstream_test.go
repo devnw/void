@@ -30,11 +30,11 @@ func Test_Up(t *testing.T) {
 			}},
 		},
 		"valid-ipv4-no-proto": {
-			address: "1.1.1.1:53",
+			address: "1.1.1.1:530",
 			expected: []Upstream{{
 				Network: UDP,
 				Address: cloudflareIpv4,
-				Port:    53,
+				Port:    530,
 			}},
 		},
 		"valid-ipv4-no-port-tcp": {
@@ -60,6 +60,41 @@ func Test_Up(t *testing.T) {
 				Address: cloudflareIpv4,
 				Port:    53,
 			}},
+		},
+		"invalid-ipv4": {
+			address:  "1.1.1.2221",
+			expected: []Upstream{},
+			error:    true,
+		},
+		"invalid-ipv4-port": {
+			address:  "1.1.1.2221:542",
+			expected: []Upstream{},
+			error:    true,
+		},
+		"invalid-ipv4-proto": {
+			address:  "tcp://1.1.1.2221",
+			expected: []Upstream{},
+			error:    true,
+		},
+		"invalid-ipv4-port-proto": {
+			address:  "tcp://1.1.1.2221:542",
+			expected: []Upstream{},
+			error:    true,
+		},
+		"invalid-proto-ipv4": {
+			address:  "notaproto://1.1.1.1",
+			expected: []Upstream{},
+			error:    true,
+		},
+		"invalid-proto-ipv4-port": {
+			address:  "notaproto://1.1.1.1:539",
+			expected: []Upstream{},
+			error:    true,
+		},
+		"invalid-port-ipv4": {
+			address:  "1.1.1.1:500003",
+			expected: []Upstream{},
+			error:    true,
 		},
 		"valid-ipv6-no-proto-no-port": {
 			address: "2606:4700:4700::1111",
@@ -113,6 +148,11 @@ func Test_Up(t *testing.T) {
 		},
 		"invalid-ipv6-proto": {
 			address:  "tcp://9892606:4700:4700::1111",
+			expected: []Upstream{},
+			error:    true,
+		},
+		"invalid-ipv6-port-proto": {
+			address:  "tcp://9892606:4700:4700::1111:53",
 			expected: []Upstream{},
 			error:    true,
 		},

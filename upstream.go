@@ -16,6 +16,9 @@ import (
 	"github.com/miekg/dns"
 )
 
+// TODO: Add range validation for numbers in both ipv4 and ipv6
+// TODO: Add fuzz tests
+
 const portReg = `(\:{1}[0-9]{1,5}){0,1}`
 const protoReg = `(tcp|udp|tcp-tls){0,1}(?:\:\/\/){0,1}`
 const ipv4Reg = `(?:[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})`
@@ -104,7 +107,6 @@ func Up(ctx context.Context, addresses ...string) ([]Upstream, error) {
 				return nil, fmt.Errorf("invalid port [%s]", matches[3])
 			}
 
-			fmt.Println("newport", newport)
 			port = newport
 		}
 
