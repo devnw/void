@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"go.devnw.com/event"
@@ -13,6 +12,11 @@ func LocalResolver(
 	pub *event.Publisher,
 	records ...*Record,
 ) (*Local, error) {
+	err := checkNil(ctx, pub)
+	if err != nil {
+		return nil, err
+	}
+
 	local := map[string]*Record{}
 	for _, r := range records {
 		local[r.Domain] = r
@@ -52,6 +56,11 @@ func (l *Local) Intercept(
 	ctx context.Context,
 	req *Request,
 ) (*Request, bool) {
+	// No local records to check
+	if len(l.local) == 0 {
+		return req, true
+	}
+
 	// Found in allow list, continue with next handler
 	l.localMu.RLock()
 	r, ok := l.local[req.Record()]
@@ -60,8 +69,15 @@ func (l *Local) Intercept(
 	if ok && len(r.IP) > 0 {
 		_, err := req.Answer(r.IP)
 		if err != nil {
-			// TODO: Handle error
-			fmt.Printf("Error: %s\n", err)
+			l.pub.ErrorFunc(ctx, func() error {
+				return Error{
+					Category: LOCAL,
+					Server:   "local-resolver",
+					Msg:      "failed to answer request",
+					Inner:    err,
+					Domain:   req.Record(),
+				}
+			})
 		}
 
 		return nil, false

@@ -86,6 +86,11 @@ func Up(
 	pub *event.Publisher,
 	addresses ...string,
 ) ([]Upstream, error) {
+	err := checkNil(ctx, pub)
+	if err != nil {
+		return nil, err
+	}
+
 	upstreams := make([]Upstream, 0, len(addresses))
 
 	for _, address := range addresses {
@@ -262,6 +267,7 @@ func (u *Upstream) Intercept(
 					Server:   u.String(),
 					Msg:      "failed to exchange request",
 					Inner:    err,
+					Domain:   req.Record(),
 				}
 			})
 			return
@@ -275,6 +281,7 @@ func (u *Upstream) Intercept(
 					Server:   u.String(),
 					Msg:      "failed to write response",
 					Inner:    err,
+					Domain:   req.Record(),
 				}
 			})
 		}

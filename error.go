@@ -1,6 +1,20 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
+
+// checkNil checks if any of the provided values are nil and returns
+// an error if they are.
+func checkNil(values ...any) error {
+	for _, value := range values {
+		if value == nil {
+			return fmt.Errorf("nil value of type %T", value)
+		}
+	}
+
+	return nil
+}
 
 type Category string
 
@@ -17,10 +31,15 @@ type Error struct {
 	Server   string   `json:"server"`
 	Msg      string   `json:"msg"`
 	Inner    error    `json:"inner"`
+	Domain   string   `json:"domain"`
 }
 
 func (e Error) String() string {
 	msg := fmt.Sprintf("%s: %s", e.Msg, e.Inner)
+
+	if e.Domain != "" {
+		msg = fmt.Sprintf("%s | %s", e.Domain, msg)
+	}
 
 	if e.Server != "" {
 		msg = fmt.Sprintf("%s | %s", e.Server, msg)
