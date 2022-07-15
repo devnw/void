@@ -3,20 +3,46 @@ package main
 import (
 	"context"
 	"fmt"
-	"net"
 	"sync"
 
-	"github.com/miekg/dns"
+	"go.devnw.com/event"
 )
 
-func LocalResolver() (*Local, error) {
-	return &Local{}, nil
+func LocalResolver(
+	ctx context.Context,
+	pub *event.Publisher,
+	records ...*Record,
+) (*Local, error) {
+	local := map[string]*Record{}
+	for _, r := range records {
+		local[r.Domain] = r
+	}
+
+	return &Local{
+		ctx:   ctx,
+		pub:   pub,
+		local: local,
+	}, nil
 }
 
+// Local is the local DNS resolver implementation which handles the locally
+// configured DNS records. This does NOT include any blocked or allowed
+// records nor does it handle caching upstream DNS records. This is strictly
+// for local DNS records.
 type Local struct {
 	ctx     context.Context
-	local   map[string]net.IP
+	pub     *event.Publisher
+	local   map[string]*Record
 	localMu sync.RWMutex
+}
+
+// Add adds a local record to the local resolver
+// TODO: Setup parallel routine to store records in local LocalResolver
+// configuration file
+func (l *Local) Add(r *Record) {
+	l.localMu.Lock()
+	l.local[r.Domain] = r
+	l.localMu.Unlock()
 }
 
 // Intercept implements the stream.InterceptFunc which
@@ -28,11 +54,11 @@ func (l *Local) Intercept(
 ) (*Request, bool) {
 	// Found in allow list, continue with next handler
 	l.localMu.RLock()
-	ip, ok := l.local[req.Record()]
+	r, ok := l.local[req.Record()]
 	l.localMu.RUnlock()
 
-	if ok && len(ip) > 0 {
-		_, err := req.Answer(ip)
+	if ok && len(r.IP) > 0 {
+		_, err := req.Answer(r.IP)
 		if err != nil {
 			// TODO: Handle error
 			fmt.Printf("Error: %s\n", err)
@@ -42,35 +68,4 @@ func (l *Local) Intercept(
 	}
 
 	return req, true
-}
-
-func (l *Local) Handler(next HandleFunc) HandleFunc {
-	l.localMu.Lock()
-	l.local["cisco1.kolhar.net"] = net.ParseIP("10.10.10.10")
-	l.localMu.Unlock()
-
-	return func(w dns.ResponseWriter, req *dns.Msg) {
-		ctx, cancel := context.WithCancel(l.ctx)
-		r := &Request{
-			ctx:    ctx,
-			cancel: cancel,
-			w:      w,
-			r:      req,
-		}
-
-		// Found in allow list, continue with next handler
-		l.localMu.RLock()
-		addr, ok := l.local[r.Record()]
-		l.localMu.RUnlock()
-		if !ok || addr == nil {
-			next(w, req)
-			return
-		}
-
-		_, err := r.Answer(addr)
-		if err != nil {
-			// TODO: Handle error
-			fmt.Printf("Error: %s\n", err)
-		}
-	}
 }

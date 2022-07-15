@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	"go.devnw.com/event"
 )
 
 // TODO: Add range validation for numbers in both ipv4 and ipv6
@@ -80,7 +81,11 @@ func TLSConfig(caCert []byte) (*tls.Config, error) {
 
 // Up creates a new DNS client to an Upstream server as defined
 // by the address. The address should follow the format:
-func Up(ctx context.Context, addresses ...string) ([]Upstream, error) {
+func Up(
+	ctx context.Context,
+	pub *event.Publisher,
+	addresses ...string,
+) ([]Upstream, error) {
 	upstreams := make([]Upstream, 0, len(addresses))
 
 	for _, address := range addresses {
@@ -158,6 +163,7 @@ type Upstream struct {
 
 	// Time before reconnecting the client
 	reconnect time.Duration
+	pub       *event.Publisher
 }
 
 // init instantiates the internal routine for managing the connection
@@ -173,6 +179,14 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 		// Initial connection
 		conn, err := u.client.DialContext(ctx, u.String())
 		if err != nil {
+			u.pub.ErrorFunc(ctx, func() error {
+				return Error{
+					Category: UPSTREAM,
+					Server:   u.String(),
+					Msg:      "failed to connect",
+					Inner:    err,
+				}
+			})
 			return
 		}
 
@@ -184,6 +198,18 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 				// Attempt Reconnect
 				newConn, err := u.client.DialContext(ctx, u.String())
 				if err != nil {
+					u.pub.ErrorFunc(ctx, func() error {
+						return Error{
+							Category: UPSTREAM,
+							Server:   u.String(),
+							Msg: fmt.Sprintf(
+								"failed to reconnect - retry in %s",
+								u.reconnect,
+							),
+							Inner: err,
+						}
+					})
+
 					continue
 				}
 
@@ -227,17 +253,30 @@ func (u *Upstream) Intercept(
 			return
 		}
 
-		// TODO: add logging and rtt calculation
-
 		// Send the Request
 		resp, _, err := u.client.ExchangeWithConn(req.r, conn)
 		if err != nil {
+			u.pub.ErrorFunc(ctx, func() error {
+				return Error{
+					Category: UPSTREAM,
+					Server:   u.String(),
+					Msg:      "failed to exchange request",
+					Inner:    err,
+				}
+			})
 			return
 		}
 
 		err = req.w.WriteMsg(resp)
 		if err != nil {
-			return
+			u.pub.ErrorFunc(ctx, func() error {
+				return Error{
+					Category: UPSTREAM,
+					Server:   u.String(),
+					Msg:      "failed to write response",
+					Inner:    err,
+				}
+			})
 		}
 
 		return
