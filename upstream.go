@@ -134,6 +134,8 @@ func Up(ctx context.Context, addresses ...string) ([]Upstream, error) {
 	return upstreams, nil
 }
 
+// Upstream handles the exchanging of DNS requests with the
+// upstream server for a specific request.
 type Upstream struct {
 	// address of the upstream server
 	address net.IP
@@ -158,6 +160,8 @@ type Upstream struct {
 	reconnect time.Duration
 }
 
+// init instantiates the internal routine for managing the connection
+// re-instantiation for the upstream server.
 func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 	out := make(chan *dns.Conn)
 
@@ -211,13 +215,16 @@ func (u *Upstream) String() string {
 func (u *Upstream) Intercept(
 	ctx context.Context,
 	req *Request,
-) (*Request, bool) {
+
+	// Named variables allow for implicit return since this
+	// implementation will never pass down the request
+) (s struct{}, cont bool) {
 	select {
 	case <-ctx.Done():
-		return nil, false
+		return
 	case conn, ok := <-u.conn:
 		if !ok {
-			return nil, false
+			return
 		}
 
 		// TODO: add logging and rtt calculation
@@ -225,16 +232,14 @@ func (u *Upstream) Intercept(
 		// Send the Request
 		resp, _, err := u.client.ExchangeWithConn(req.r, conn)
 		if err != nil {
-			return nil, false
+			return
 		}
 
 		err = req.w.WriteMsg(resp)
 		if err != nil {
-			return nil, false
+			return
 		}
 
-		return req, false
+		return
 	}
-
-	return req, false
 }
