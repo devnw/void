@@ -31,14 +31,14 @@ type Error struct {
 	Server   string   `json:"server"`
 	Msg      string   `json:"msg"`
 	Inner    error    `json:"inner"`
-	Domain   string   `json:"domain"`
+	Record   string   `json:"domain"`
 }
 
 func (e Error) String() string {
 	msg := fmt.Sprintf("%s: %s", e.Msg, e.Inner)
 
-	if e.Domain != "" {
-		msg = fmt.Sprintf("%s | %s", e.Domain, msg)
+	if e.Record != "" {
+		msg = fmt.Sprintf("%s | %s", e.Record, msg)
 	}
 
 	if e.Server != "" {

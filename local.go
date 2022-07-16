@@ -7,6 +7,8 @@ import (
 	"go.devnw.com/event"
 )
 
+// TODO: Should I have a local regex resolver?
+
 func LocalResolver(
 	ctx context.Context,
 	pub *event.Publisher,
@@ -75,7 +77,7 @@ func (l *Local) Intercept(
 					Server:   "local-resolver",
 					Msg:      "failed to answer request",
 					Inner:    err,
-					Domain:   req.Record(),
+					Record:   req.String(),
 				}
 			})
 		}

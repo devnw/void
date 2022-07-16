@@ -7,8 +7,11 @@ import (
 	"sync"
 
 	"github.com/miekg/dns"
-	"go.devnw.com/ttl"
 )
+
+// HandleFunc is a type alias for the handler function
+// from the dns package
+type HandleFunc func(dns.ResponseWriter, *dns.Msg)
 
 // Convert returns a handler for the DNS server as well as a
 // read-only channel of requests to be pushed down the pipeline
@@ -44,10 +47,6 @@ func Convert(pCtx context.Context) (HandleFunc, <-chan *Request) {
 
 // TODO: Convert wildcard to regex
 // (\.|^)domain\.tld$
-
-// HandleFunc is a type alias for the handler function
-// from the dns package
-type HandleFunc func(dns.ResponseWriter, *dns.Msg)
 
 type void struct {
 	ctx context.Context
@@ -110,48 +109,28 @@ func (v *void) Handler(next HandleFunc) HandleFunc {
 	}
 }
 
-type cached struct {
-	ctx   context.Context
-	cache *ttl.Cache[string, *dns.Msg]
-}
-
-func (c *cached) Handler(next HandleFunc) HandleFunc {
-	return func(w dns.ResponseWriter, req *dns.Msg) {
-		record := strings.TrimSuffix(req.Question[0].Name, ".")
-
-		fmt.Printf("%s\n", record)
-		r, ok := c.cache.Get(c.ctx, record)
-		if !ok || r == nil {
-			next(&interceptor{w, c.ctx, c.cache}, req)
-			return
-		}
-
-		resp := r.SetReply(req)
-
-		err := w.WriteMsg(resp)
-		if err != nil {
-			// TODO: Handle error
-			fmt.Printf("Error: %s\n", err)
-		}
-	}
-}
-
-// interceptor is a dns.ResponseWriter that caches the response
-// for future queries so that they are not re-requesting an updated
-// IP for an address that has already been queried
-type interceptor struct {
-	dns.ResponseWriter
-	ctx   context.Context
-	cache *ttl.Cache[string, *dns.Msg]
-}
-
-func (i *interceptor) WriteMsg(res *dns.Msg) error {
-	record := strings.TrimSuffix(res.Question[0].Name, ".")
-
-	err := i.cache.Set(i.ctx, record, res)
-	if err != nil {
-		return err
-	}
-
-	return i.ResponseWriter.WriteMsg(res)
-}
+//type cached struct {
+//	ctx   context.Context
+//	cache *ttl.Cache[string, *dns.Msg]
+//}
+//
+//func (c *cached) Handler(next HandleFunc) HandleFunc {
+//	return func(w dns.ResponseWriter, req *dns.Msg) {
+//		record := strings.TrimSuffix(req.Question[0].Name, ".")
+//
+//		fmt.Printf("%s\n", record)
+//		r, ok := c.cache.Get(c.ctx, record)
+//		if !ok || r == nil {
+//			next(&interceptor{w, c.ctx, c.cache}, req)
+//			return
+//		}
+//
+//		resp := r.SetReply(req)
+//
+//		err := w.WriteMsg(resp)
+//		if err != nil {
+//			// TODO: Handle error
+//			fmt.Printf("Error: %s\n", err)
+//		}
+//	}
+//}

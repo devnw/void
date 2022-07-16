@@ -2,18 +2,26 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strings"
 
 	"github.com/miekg/dns"
 )
 
+// TODO: Setup initializer for request, move to interface? etc...
+// Add invalidation for the *dns.Msg in the initializer
+
+type Writer interface {
+	WriteMsg(res *dns.Msg) error
+}
+
 // Request encapsulates all of the request
 // data for evaluation in the pipeline
 type Request struct {
 	ctx    context.Context
 	cancel context.CancelFunc
-	w      dns.ResponseWriter
+	w      Writer
 	r      *dns.Msg
 	record string
 }
@@ -25,6 +33,24 @@ func (r *Request) Record() string {
 	}
 
 	return r.record
+}
+
+// Key returns a unique identifier for the request which is an aggregate
+// of the name, type, and class
+func (r *Request) Key() string {
+	// TODO: Add validation?
+	q := r.r.Question[0]
+
+	return fmt.Sprintf("%s:%d:%d", q.Name, q.Qtype, q.Qclass)
+}
+
+func (r *Request) String() string {
+	return fmt.Sprintf(
+		"%s %s %s",
+		r.r.Question[0].Name,
+		dns.Type(r.r.Question[0].Qtype).String(),
+		dns.Class(r.r.Question[0].Qclass).String(),
+	)
 }
 
 // Block writes a block response to the request

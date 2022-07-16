@@ -267,7 +267,7 @@ func (u *Upstream) Intercept(
 					Server:   u.String(),
 					Msg:      "failed to exchange request",
 					Inner:    err,
-					Domain:   req.Record(),
+					Record:   req.String(),
 				}
 			})
 			return
@@ -281,7 +281,7 @@ func (u *Upstream) Intercept(
 					Server:   u.String(),
 					Msg:      "failed to write response",
 					Inner:    err,
-					Domain:   req.Record(),
+					Record:   req.String(),
 				}
 			})
 		}
