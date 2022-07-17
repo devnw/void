@@ -130,15 +130,22 @@ func Up(
 			}
 		}
 
-		upstreams = append(upstreams, Upstream{
-			proto:   proto,
-			address: net.ParseIP(matches[2]),
-			port:    uint16(port),
+		u := Upstream{
+			proto:     proto,
+			address:   net.ParseIP(matches[2]),
+			port:      uint16(port),
+			pub:       pub,
+			reconnect: time.Minute,
 			client: &dns.Client{
 				Net:       string(proto),
 				TLSConfig: tlsConfig,
 			},
-		})
+		}
+
+		// Initialize the upstream connection
+		u.conn = u.init(ctx)
+
+		upstreams = append(upstreams, u)
 	}
 
 	return upstreams, nil
@@ -181,8 +188,12 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 		defer ticker.Stop()
 		defer close(out)
 
+		fmt.Println("Connecting to", u.String())
 		// Initial connection
-		conn, err := u.client.DialContext(ctx, u.String())
+		conn, err := u.client.DialContext(ctx, net.JoinHostPort(
+			u.address.String(),
+			strconv.Itoa(int(u.port)),
+		))
 		if err != nil {
 			u.pub.ErrorFunc(ctx, func() error {
 				return Error{
@@ -201,7 +212,10 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 				return
 			case <-ticker.C:
 				// Attempt Reconnect
-				newConn, err := u.client.DialContext(ctx, u.String())
+				newConn, err := u.client.DialContext(ctx, net.JoinHostPort(
+					u.address.String(),
+					strconv.Itoa(int(u.port)),
+				))
 				if err != nil {
 					u.pub.ErrorFunc(ctx, func() error {
 						return Error{
@@ -224,6 +238,7 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 				// Update the connection
 				conn = newConn
 			case out <- conn:
+				fmt.Println("sent connection")
 			}
 		}
 	}()
@@ -233,10 +248,12 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 
 func (u *Upstream) String() string {
 	return fmt.Sprintf(
-		"%s://%s:%d",
+		"%s://%s",
 		u.proto,
-		u.address,
-		u.port,
+		net.JoinHostPort(
+			u.address.String(),
+			strconv.Itoa(int(u.port)),
+		),
 	)
 }
 
@@ -250,6 +267,7 @@ func (u *Upstream) Intercept(
 	// Named variables allow for implicit return since this
 	// implementation will never pass down the request
 ) (s struct{}, cont bool) {
+	fmt.Println("Intercept called")
 	select {
 	case <-ctx.Done():
 		return
@@ -257,6 +275,8 @@ func (u *Upstream) Intercept(
 		if !ok {
 			return
 		}
+
+		fmt.Println("intercepting")
 
 		// Send the Request
 		resp, _, err := u.client.ExchangeWithConn(req.r, conn)

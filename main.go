@@ -10,7 +10,9 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
+	"go.atomizer.io/stream"
 	"go.devnw.com/alog"
+	"go.devnw.com/event"
 )
 
 var version string
@@ -37,6 +39,11 @@ func main() {
 
 func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 	return func(cmd *cobra.Command, _ []string) {
+		pub := event.NewPublisher(ctx)
+
+		alog.Printc(ctx, pub.ReadEvents(0).Interface())
+		alog.Errorc(ctx, pub.ReadErrors(0).Interface())
+
 		server := &dns.Server{
 			Addr: ":" + strconv.Itoa(port),
 			Net:  "udp",
@@ -49,26 +56,45 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 		// Register the handler into the dns server
 		dns.HandleFunc(".", handler)
 
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case r, ok := <-requests:
-					if !ok {
-						return
-					}
+		//go func() {
+		//	for {
+		//		select {
+		//		case <-ctx.Done():
+		//			return
+		//		case r, ok := <-requests:
+		//			if !ok {
+		//				return
+		//			}
 
-					fmt.Println(r.Record())
-					err := r.Block()
-					if err != nil {
-						fmt.Printf("ERROR: %s\n", err)
-					}
-				}
-			}
-		}()
+		//			fmt.Println(r.Record())
+		//			err := r.Block()
+		//			if err != nil {
+		//				fmt.Printf("ERROR: %s\n", err)
+		//			}
+		//		}
+		//	}
+		//}()
 
-		err := server.ListenAndServe()
+		upstream, err := Up(ctx, pub, "1.1.1.1")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		s := stream.Scaler[*Request, struct{}]{
+			Wait: time.Nanosecond,
+			Life: time.Millisecond,
+			Fn:   upstream[0].Intercept,
+		}
+
+		_, err = s.Exec(
+			ctx,
+			requests,
+		)
+		if err != nil {
+			panic(err)
+		}
+
+		err = server.ListenAndServe()
 		if err != nil {
 			log.Fatal(err)
 		}
