@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/miekg/dns"
 	"go.devnw.com/event"
 )
 
@@ -69,7 +70,17 @@ func (l *Local) Intercept(
 	l.localMu.RUnlock()
 
 	if ok && len(r.IP) > 0 {
-		_, err := req.Answer(r.IP)
+		req.r.Answer = append(req.r.Answer, &dns.A{
+			Hdr: dns.RR_Header{
+				Name:   req.r.Question[0].Name,
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    60,
+			},
+			A: r.IP,
+		})
+
+		err := req.Answer(req.r)
 		if err != nil {
 			l.pub.ErrorFunc(ctx, func() error {
 				return Error{

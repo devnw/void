@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net"
 	"strings"
 
 	"github.com/miekg/dns"
@@ -71,25 +70,14 @@ func (r *Request) Block() error {
 
 // Answer returns a response for a specific domain request with the
 // provided IP address
-func (r *Request) Answer(ip net.IP) (*dns.Msg, error) {
+func (r *Request) Answer(msg *dns.Msg) error {
 	select {
 	case <-r.ctx.Done():
-		return nil, r.ctx.Err()
+		return r.ctx.Err()
 	default:
 		r.cancel()
 
-		res := &dns.Msg{}
-		res.SetReply(r.r)
-		res.Answer = append(res.Answer, &dns.A{
-			Hdr: dns.RR_Header{
-				Name:   r.r.Question[0].Name,
-				Rrtype: dns.TypeA,
-				Class:  dns.ClassINET,
-				Ttl:    60,
-			},
-			A: ip,
-		})
-
-		return res, r.w.WriteMsg(res)
+		msg.SetReply(r.r)
+		return r.w.WriteMsg(msg)
 	}
 }

@@ -27,6 +27,7 @@ func (c *Cache) Intercept(
 	ctx context.Context,
 	req *Request,
 ) (*Request, bool) {
+	fmt.Println("Cache intercept")
 	if len(req.r.Question) == 0 {
 		err := req.Block()
 
@@ -45,7 +46,6 @@ func (c *Cache) Intercept(
 
 	r, ok := c.cache.Get(c.ctx, req.Key())
 	if !ok || r == nil {
-
 		// Add hook for final response to cache
 		req.w = &interceptor{
 			c.ctx,
@@ -54,6 +54,21 @@ func (c *Cache) Intercept(
 			req,
 			req.w.WriteMsg, // TODO: Determine if this is the correct pattern
 		}
+
+		return req, true
+	}
+
+	err := req.Answer(r)
+	if err != nil {
+		c.pub.ErrorFunc(ctx, func() error {
+			return Error{
+				Category: CACHE,
+				Server:   "cache",
+				Msg:      "failed to answer request",
+				Inner:    err,
+				Record:   req.String(),
+			}
+		})
 	}
 
 	return req, false

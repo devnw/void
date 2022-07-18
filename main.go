@@ -13,6 +13,7 @@ import (
 	"go.atomizer.io/stream"
 	"go.devnw.com/alog"
 	"go.devnw.com/event"
+	"go.devnw.com/ttl"
 )
 
 var version string
@@ -41,6 +42,7 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 	return func(cmd *cobra.Command, _ []string) {
 		pub := event.NewPublisher(ctx)
 
+		i := &Initializer[*Request, *Request]{pub}
 		alog.Printc(ctx, pub.ReadEvents(0).Interface())
 		alog.Errorc(ctx, pub.ReadErrors(0).Interface())
 
@@ -80,18 +82,23 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 			log.Fatal(err)
 		}
 
-		s := stream.Scaler[*Request, struct{}]{
-			Wait: time.Nanosecond,
-			Life: time.Millisecond,
-			Fn:   upstream[0].Intercept,
+		cache := &Cache{
+			ctx,
+			pub,
+			ttl.NewCache[string, *dns.Msg](ctx, time.Minute, true),
 		}
 
-		_, err = s.Exec(
+		_ = i.Scale(
 			ctx,
-			requests,
+			i.Scale(
+				ctx,
+				requests,
+				cache.Intercept,
+			),
+			upstream[0].Intercept,
 		)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
 		err = server.ListenAndServe()
@@ -134,6 +141,31 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 		//		),
 		//	))
 	}
+}
+
+type Initializer[T, U any] struct {
+	pub *event.Publisher
+}
+
+func (i *Initializer[T, U]) Scale(
+	ctx context.Context,
+	in <-chan T,
+	f stream.InterceptFunc[T, U],
+) <-chan U {
+	s := stream.Scaler[T, U]{
+		Wait: time.Nanosecond,
+		Life: time.Millisecond,
+		Fn:   f,
+	}
+
+	out, err := s.Exec(ctx, in)
+	if err != nil {
+		i.pub.ErrorFunc(ctx, func() error {
+			return err
+		})
+	}
+
+	return out
 }
 
 func configLogger(ctx context.Context, prefix string) error {

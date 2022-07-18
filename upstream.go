@@ -190,10 +190,7 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 
 		fmt.Println("Connecting to", u.String())
 		// Initial connection
-		conn, err := u.client.DialContext(ctx, net.JoinHostPort(
-			u.address.String(),
-			strconv.Itoa(int(u.port)),
-		))
+		conn, err := u.client.DialContext(ctx, u.addr())
 		if err != nil {
 			u.pub.ErrorFunc(ctx, func() error {
 				return Error{
@@ -212,10 +209,7 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 				return
 			case <-ticker.C:
 				// Attempt Reconnect
-				newConn, err := u.client.DialContext(ctx, net.JoinHostPort(
-					u.address.String(),
-					strconv.Itoa(int(u.port)),
-				))
+				newConn, err := u.client.DialContext(ctx, u.addr())
 				if err != nil {
 					u.pub.ErrorFunc(ctx, func() error {
 						return Error{
@@ -250,10 +244,14 @@ func (u *Upstream) String() string {
 	return fmt.Sprintf(
 		"%s://%s",
 		u.proto,
-		net.JoinHostPort(
-			u.address.String(),
-			strconv.Itoa(int(u.port)),
-		),
+		u.addr(),
+	)
+}
+
+func (u *Upstream) addr() string {
+	return net.JoinHostPort(
+		u.address.String(),
+		strconv.Itoa(int(u.port)),
 	)
 }
 
@@ -266,7 +264,7 @@ func (u *Upstream) Intercept(
 
 	// Named variables allow for implicit return since this
 	// implementation will never pass down the request
-) (s struct{}, cont bool) {
+) (s *Request, cont bool) {
 	fmt.Println("Intercept called")
 	select {
 	case <-ctx.Done():
