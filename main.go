@@ -53,7 +53,7 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 
 		//	client := &dns.Client{}
 
-		handler, requests := Convert(ctx)
+		handler, requests := Convert(ctx, pub, true)
 
 		// Register the handler into the dns server
 		dns.HandleFunc(".", handler)

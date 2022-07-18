@@ -127,7 +127,7 @@ type CacheEvent struct {
 	TTL      time.Duration
 }
 
-func (e *CacheEvent) Event() string {
+func (e *CacheEvent) String() string {
 	return fmt.Sprintf(
 		"CACHE %s %s %s %s",
 		strings.ToUpper(string(e.Method)),
@@ -135,4 +135,8 @@ func (e *CacheEvent) Event() string {
 		e.TTL,
 		e.Record,
 	)
+}
+
+func (e *CacheEvent) Event() string {
+	return e.String()
 }
