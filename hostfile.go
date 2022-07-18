@@ -34,7 +34,7 @@ func (h *Host) Record(src, cat string, tags ...string) *Record {
 		Domain:   h.Domain,
 		IP:       h.IP,
 		Comment:  h.Comment,
-		Type:     DIRECT,
+		Eval:     DIRECT,
 		Source:   src,
 		Category: cat,
 		Tags:     tags,

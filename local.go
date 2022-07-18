@@ -20,6 +20,7 @@ func LocalResolver(
 		return nil, err
 	}
 
+	// TODO: Add future support for specific record types
 	local := map[string]*Record{}
 	for _, r := range records {
 		local[r.Domain] = r
@@ -64,6 +65,14 @@ func (l *Local) Intercept(
 		return req, true
 	}
 
+	// Only support A, AAAA, and CNAME records for local
+	// records for now
+	if req.r.Question[0].Qtype != dns.TypeA ||
+		req.r.Question[0].Qtype != dns.TypeAAAA ||
+		req.r.Question[0].Qtype != dns.TypeCNAME {
+		return req, true
+	}
+
 	// Found in allow list, continue with next handler
 	l.localMu.RLock()
 	r, ok := l.local[req.Record()]
@@ -92,9 +101,7 @@ func (l *Local) Intercept(
 				}
 			})
 		}
-
-		return nil, false
 	}
 
-	return req, true
+	return nil, false
 }

@@ -24,6 +24,7 @@ func Convert(pCtx context.Context) (HandleFunc, <-chan *Request) {
 	}()
 
 	return func(w dns.ResponseWriter, req *dns.Msg) {
+		fmt.Printf("REQ: %s\n", req)
 		ctx, cancel := context.WithCancel(pCtx)
 		r := &Request{
 			ctx:    ctx,
@@ -60,14 +61,14 @@ type void struct {
 func (v *void) Handler(next HandleFunc) HandleFunc {
 	d := &Record{
 		Domain:   "www.google.com",
-		Type:     DIRECT,
+		Eval:     DIRECT,
 		Category: "advertising",
 		Tags:     []string{"advertising", "google"},
 	}
 
 	a := &Record{
 		Domain:   "google.com",
-		Type:     DIRECT,
+		Eval:     DIRECT,
 		Category: "advertising",
 		Tags:     []string{"advertising", "google"},
 	}
