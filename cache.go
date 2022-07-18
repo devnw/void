@@ -27,7 +27,6 @@ func (c *Cache) Intercept(
 	ctx context.Context,
 	req *Request,
 ) (*Request, bool) {
-	fmt.Println("Cache intercept")
 	if len(req.r.Question) == 0 {
 		err := req.Block()
 

@@ -188,7 +188,6 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 		defer ticker.Stop()
 		defer close(out)
 
-		fmt.Println("Connecting to", u.String())
 		// Initial connection
 		conn, err := u.client.DialContext(ctx, u.addr())
 		if err != nil {
@@ -232,7 +231,6 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 				// Update the connection
 				conn = newConn
 			case out <- conn:
-				fmt.Println("sent connection")
 			}
 		}
 	}()
@@ -265,7 +263,6 @@ func (u *Upstream) Intercept(
 	// Named variables allow for implicit return since this
 	// implementation will never pass down the request
 ) (s *Request, cont bool) {
-	fmt.Println("Intercept called")
 	select {
 	case <-ctx.Done():
 		return
@@ -273,8 +270,6 @@ func (u *Upstream) Intercept(
 		if !ok {
 			return
 		}
-
-		fmt.Println("intercepting")
 
 		// Send the Request
 		resp, _, err := u.client.ExchangeWithConn(req.r, conn)
