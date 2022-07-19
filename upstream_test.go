@@ -4,6 +4,8 @@ import (
 	"context"
 	"net"
 	"testing"
+
+	"go.devnw.com/event"
 )
 
 var cloudflareIpv4S = "1.1.1.1"
@@ -24,41 +26,41 @@ func Test_Up(t *testing.T) {
 		"valid-ipv4-no-proto-no-port": {
 			address: "1.1.1.1",
 			expected: []Upstream{{
-				Network: TCP,
-				Address: cloudflareIpv4,
-				Port:    53,
+				proto:   TCP,
+				address: cloudflareIpv4,
+				port:    53,
 			}},
 		},
 		"valid-ipv4-no-proto": {
 			address: "1.1.1.1:530",
 			expected: []Upstream{{
-				Network: UDP,
-				Address: cloudflareIpv4,
-				Port:    530,
+				proto:   UDP,
+				address: cloudflareIpv4,
+				port:    530,
 			}},
 		},
 		"valid-ipv4-no-port-tcp": {
 			address: "tcp://1.1.1.1",
 			expected: []Upstream{{
-				Network: TCP,
-				Address: cloudflareIpv4,
-				Port:    53,
+				proto:   TCP,
+				address: cloudflareIpv4,
+				port:    53,
 			}},
 		},
 		"valid-ipv4-no-port-tcp-tls": {
 			address: "tcp-tls://1.1.1.1",
 			expected: []Upstream{{
-				Network: TLS,
-				Address: cloudflareIpv4,
-				Port:    53,
+				proto:   TLS,
+				address: cloudflareIpv4,
+				port:    53,
 			}},
 		},
 		"valid-ipv4-no-port-udp": {
 			address: "udp://1.1.1.1",
 			expected: []Upstream{{
-				Network: UDP,
-				Address: cloudflareIpv4,
-				Port:    53,
+				proto:   UDP,
+				address: cloudflareIpv4,
+				port:    53,
 			}},
 		},
 		"invalid-ipv4": {
@@ -99,41 +101,41 @@ func Test_Up(t *testing.T) {
 		"valid-ipv6-no-proto-no-port": {
 			address: "2606:4700:4700::1111",
 			expected: []Upstream{{
-				Network: TCP,
-				Address: cloudflareIpv6,
-				Port:    53,
+				proto:   TCP,
+				address: cloudflareIpv6,
+				port:    53,
 			}},
 		},
 		"valid-ipv6-no-proto": {
 			address: "2606:4700:4700::1111:5300",
 			expected: []Upstream{{
-				Network: UDP,
-				Address: cloudflareIpv6,
-				Port:    5300,
+				proto:   UDP,
+				address: cloudflareIpv6,
+				port:    5300,
 			}},
 		},
 		"valid-ipv6-no-port-tcp": {
 			address: "tcp://2606:4700:4700::1111",
 			expected: []Upstream{{
-				Network: TCP,
-				Address: cloudflareIpv6,
-				Port:    53,
+				proto:   TCP,
+				address: cloudflareIpv6,
+				port:    53,
 			}},
 		},
 		"valid-ipv6-no-port-tcp-tls": {
 			address: "tcp-tls://2606:4700:4700::1111",
 			expected: []Upstream{{
-				Network: TLS,
-				Address: cloudflareIpv6,
-				Port:    53,
+				proto:   TLS,
+				address: cloudflareIpv6,
+				port:    53,
 			}},
 		},
 		"valid-ipv6-no-port-udp": {
 			address: "udp://2606:4700:4700::1111",
 			expected: []Upstream{{
-				Network: UDP,
-				Address: cloudflareIpv6,
-				Port:    53,
+				proto:   UDP,
+				address: cloudflareIpv6,
+				port:    53,
 			}},
 		},
 		"invalid-ipv6": {
@@ -175,7 +177,9 @@ func Test_Up(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			upstreams, err := Up(ctx, test.address)
+			pub := event.NewPublisher(ctx)
+
+			upstreams, err := Up(ctx, pub, test.address)
 			if err != nil {
 				if test.error {
 					return

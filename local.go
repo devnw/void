@@ -27,9 +27,9 @@ func LocalResolver(
 	}
 
 	return &Local{
-		ctx:   ctx,
-		pub:   pub,
-		local: local,
+		ctx:     ctx,
+		pub:     pub,
+		records: local,
 	}, nil
 }
 
@@ -38,19 +38,19 @@ func LocalResolver(
 // records nor does it handle caching upstream DNS records. This is strictly
 // for local DNS records.
 type Local struct {
-	ctx     context.Context
-	pub     *event.Publisher
-	local   map[string]*Record
-	localMu sync.RWMutex
+	ctx       context.Context
+	pub       *event.Publisher
+	records   map[string]*Record
+	recordsMu sync.RWMutex
 }
 
 // Add adds a local record to the local resolver
 // TODO: Setup parallel routine to store records in local LocalResolver
 // configuration file
 func (l *Local) Add(r *Record) {
-	l.localMu.Lock()
-	l.local[r.Domain] = r
-	l.localMu.Unlock()
+	l.recordsMu.Lock()
+	l.records[r.Domain] = r
+	l.recordsMu.Unlock()
 }
 
 // Intercept implements the stream.InterceptFunc which
@@ -61,22 +61,22 @@ func (l *Local) Intercept(
 	req *Request,
 ) (*Request, bool) {
 	// No local records to check
-	if len(l.local) == 0 {
+	if len(l.records) == 0 {
 		return req, true
 	}
 
 	// Only support A, AAAA, and CNAME records for local
 	// records for now
-	if req.r.Question[0].Qtype != dns.TypeA ||
-		req.r.Question[0].Qtype != dns.TypeAAAA ||
-		req.r.Question[0].Qtype != dns.TypeCNAME {
-		return req, true
-	}
+	//if req.r.Question[0].Qtype != dns.TypeA ||
+	//	req.r.Question[0].Qtype != dns.TypeAAAA ||
+	//	req.r.Question[0].Qtype != dns.TypeCNAME {
+	//	return req, true
+	//}
 
 	// Found in allow list, continue with next handler
-	l.localMu.RLock()
-	r, ok := l.local[req.Record()]
-	l.localMu.RUnlock()
+	l.recordsMu.RLock()
+	r, ok := l.records[req.Record()]
+	l.recordsMu.RUnlock()
 
 	if ok && len(r.IP) > 0 {
 		req.r.Answer = append(req.r.Answer, &dns.A{
@@ -103,5 +103,5 @@ func (l *Local) Intercept(
 		}
 	}
 
-	return nil, false
+	return req, true
 }
