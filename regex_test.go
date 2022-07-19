@@ -108,3 +108,47 @@ func Benchmark_Match(b *testing.B) {
 		}
 	}
 }
+
+func Test_Wildcard(t *testing.T) {
+	tests := map[string]struct {
+		wildcard string
+		expected string
+		input    string
+		match    bool
+		err      error
+	}{
+		"valid": {
+			wildcard: "*domain.tld",
+			expected: `(\.|^)domain\.tld$`,
+			input:    "test.domain.tld",
+			match:    true,
+			err:      nil,
+		},
+		"invalid": {
+			wildcard: "d*domain.tld",
+			err:      ErrWildcard,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			r, err := Wildcard(test.wildcard)
+			if err != test.err {
+				t.Errorf("expected %v, got %v", test.err, err)
+			}
+
+			if err != nil {
+				return
+			}
+
+			if r.String() != test.expected {
+				t.Errorf("expected [%v], got [%v]", test.expected, r.String())
+			}
+
+			match := r.MatchString(test.input)
+			if match != test.match {
+				t.Errorf("expected %v, got %v", test.match, match)
+			}
+		})
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	stream "go.atomizer.io/stream"
@@ -161,4 +162,23 @@ func (e *expr) match(
 	}
 
 	return struct{}{}, false
+}
+
+const wrapper = `(\.|^)%s\.%s$`
+
+var ErrWildcard = fmt.Errorf("invalid wildcard")
+var ErrTLD = fmt.Errorf("invalid TLD")
+
+func Wildcard(entry string) (*regexp.Regexp, error) {
+	wild := strings.LastIndex(entry, "*")
+	if wild != 0 {
+		return nil, ErrWildcard
+	}
+
+	tld := strings.LastIndex(entry, ".")
+	if tld == -1 || tld == len(entry)-1 {
+		return nil, ErrTLD
+	}
+
+	return regexp.Compile(fmt.Sprintf(wrapper, entry[wild+1:tld], entry[tld+1:]))
 }
