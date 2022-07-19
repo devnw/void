@@ -52,8 +52,6 @@ func Match(
 		return nil, fmt.Errorf("no patterns provided")
 	}
 
-	fmt.Printf("patternChans: %d\n", len(patternChans))
-
 	go stream.FanOut(ctx, requests, patternChans...)
 
 	return &Regex{len(patternChans), requests}, nil

@@ -81,3 +81,30 @@ func Test_Match(t *testing.T) {
 		})
 	}
 }
+
+func Benchmark_Match(b *testing.B) {
+	regex := `(\.|^)domain\.tld$`
+	input := "domain.tld"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pub := event.NewPublisher(ctx)
+	defer pub.Close()
+
+	r, err := Match(ctx, pub, regex)
+	if err != nil {
+		b.Errorf("unexpected error: %v", err)
+	}
+
+	for n := 0; n < b.N; n++ {
+		match, ok := <-r.Match(ctx, input, time.Second)
+		if !ok {
+			b.Fatalf("expected match")
+		}
+
+		if match != regex {
+			b.Fatalf("expected %v, got %v", regex, match)
+		}
+	}
+}
