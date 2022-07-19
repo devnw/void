@@ -29,6 +29,26 @@ func Test_Match(t *testing.T) {
 			input:   "asdf1.1.1",
 			matched: false,
 		},
+		"wildcard_domain": {
+			regex:   `(\.|^)domain\.tld$`,
+			input:   "domain.tld",
+			matched: true,
+		},
+		"wildcard_domain_sub": {
+			regex:   `(\.|^)domain\.tld$`,
+			input:   "test.domain.tld",
+			matched: true,
+		},
+		"wildcard_domain_multi_sub": {
+			regex:   `(\.|^)domain\.tld$`,
+			input:   "test2.test.domain.tld",
+			matched: true,
+		},
+		"wildcard_domain_mismatch": {
+			regex:   `(\.|^)domain\.tld$`,
+			input:   "void.tld",
+			matched: false,
+		},
 	}
 
 	for name, test := range tests {
