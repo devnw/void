@@ -19,6 +19,16 @@ func Test_Match(t *testing.T) {
 			input:   "1.1.1.1",
 			matched: true,
 		},
+		"match-ipv4_": {
+			regex:   ipv4Reg,
+			input:   "1.1.1.1",
+			matched: true,
+		},
+		"match-ipv4_bad": {
+			regex:   ipv4Reg,
+			input:   "asdf1.1.1",
+			matched: false,
+		},
 	}
 
 	for name, test := range tests {
@@ -37,6 +47,12 @@ func Test_Match(t *testing.T) {
 			match, ok := <-r.Match(ctx, test.input, time.Second)
 			if ok != test.matched {
 				t.Errorf("expected %v, got %v", test.matched, ok)
+			}
+
+			// Check to see if the match is supposed to fail and the
+			// output matches the expected value
+			if !test.matched == (len(match) == 0) {
+				return
 			}
 
 			if match != test.regex {
