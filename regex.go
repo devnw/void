@@ -52,12 +52,15 @@ func Match(
 		return nil, fmt.Errorf("no patterns provided")
 	}
 
+	fmt.Printf("patternChans: %d\n", len(patternChans))
+
 	go stream.FanOut(ctx, requests, patternChans...)
 
-	return &Regex{requests}, nil
+	return &Regex{len(patternChans), requests}, nil
 }
 
 type Regex struct {
+	patterns int
 	requests chan<- matcher
 }
 
@@ -86,16 +89,22 @@ func (r *Regex) Match(
 		}:
 		}
 
-		// Wait for the match
-		select {
-		case <-ctx.Done():
-			return
-		case pattern, ok := <-detection:
-			if !ok {
+		for i := 0; i < r.patterns; i++ {
+			// Wait for the match
+			select {
+			case <-ctx.Done():
 				return
-			}
+			case pattern, ok := <-detection:
+				if !ok {
+					return
+				}
 
-			out <- pattern
+				if pattern == "" {
+					continue
+				}
+
+				out <- pattern
+			}
 		}
 	}()
 
@@ -120,7 +129,6 @@ func (m *matchReq) Matched(ctx context.Context, pattern string) {
 	case <-m.ctx.Done():
 		return
 	case m.match <- pattern:
-		m.cancel()
 	}
 }
 
@@ -146,9 +154,12 @@ func (e *expr) match(
 	case <-ctx.Done():
 		return struct{}{}, false
 	default:
+		match := ""
 		if e.pattern.MatchString(data) {
-			req.Matched(ctx, e.pattern.String())
+			match = e.pattern.String()
 		}
+
+		req.Matched(ctx, match)
 	}
 
 	return struct{}{}, false
