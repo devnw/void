@@ -1,6 +1,7 @@
 void
 # Removing Vendor
 vendor/
+testdata/remote
 
 .vscode/
 
