@@ -128,6 +128,14 @@ func Test_Wildcard(t *testing.T) {
 			wildcard: "d*domain.tld",
 			err:      ErrWildcard,
 		},
+		"invalid_domain": {
+			wildcard: "*.tld",
+			err:      ErrDomain,
+		},
+		"invalid_tld": {
+			wildcard: "*domain.",
+			err:      ErrTLD,
+		},
 	}
 
 	for name, test := range tests {

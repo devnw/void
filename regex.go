@@ -168,6 +168,7 @@ const wrapper = `(\.|^)%s\.%s$`
 
 var ErrWildcard = fmt.Errorf("invalid wildcard")
 var ErrTLD = fmt.Errorf("invalid TLD")
+var ErrDomain = fmt.Errorf("invalid domain")
 
 func Wildcard(entry string) (*regexp.Regexp, error) {
 	wild := strings.LastIndex(entry, "*")
@@ -175,10 +176,16 @@ func Wildcard(entry string) (*regexp.Regexp, error) {
 		return nil, ErrWildcard
 	}
 
-	tld := strings.LastIndex(entry, ".")
-	if tld == -1 || tld == len(entry)-1 {
+	tldi := strings.LastIndex(entry, ".")
+	if tldi == -1 || tldi == len(entry)-1 {
 		return nil, ErrTLD
 	}
 
-	return regexp.Compile(fmt.Sprintf(wrapper, entry[wild+1:tld], entry[tld+1:]))
+	body := entry[wild+1 : tldi]
+	tld := entry[tldi+1:]
+	if len(body) == 0 {
+		return nil, ErrDomain
+	}
+
+	return regexp.Compile(fmt.Sprintf(wrapper, body, tld))
 }
