@@ -1,9 +1,19 @@
 package main
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func Test_HostFile_ReadHosts(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
+	hosts := ReadHosts(ctx, "testdata/remote/")
+
+	for _, host := range hosts {
+		t.Logf("%s", host)
+	}
 }
 
 func Test_HostFile_GetHost(t *testing.T) {

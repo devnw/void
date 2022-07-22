@@ -69,6 +69,7 @@ func ReadDirectory(ctx context.Context, dir string) <-chan string {
 				case <-ctx.Done():
 					return
 				case out <- path.Join(dir, i.Name()):
+					fmt.Println(i.Name())
 				}
 
 				continue

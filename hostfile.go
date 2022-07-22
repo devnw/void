@@ -59,58 +59,94 @@ func (h Hosts) Swap(i, j int) {
 const columns = 2
 
 // ReadHosts reads host files from the provided directories
-func ReadHosts(ctx context.Context, paths ...string) []Host {
-	var hosts []Host
-	files := make(chan string)
+func ReadHosts(ctx context.Context, path string) []*Host {
+	var hosts []*Host
 
-	for _, path := range paths {
-		go stream.Pipe(
-			ctx,
-			ReadDirectory(ctx, path),
-			files,
-		)
+	count := 0
+	bodies := ReadFiles(ctx, ReadDirectory(ctx, path))
+	for {
+		select {
+		case <-ctx.Done():
+			return hosts
+		case body, ok := <-bodies:
+			if !ok {
+				return hosts
+			}
+
+			hosts = append(hosts, parseFile(ctx, body)...)
+			count++
+			fmt.Printf("Processed %d files\n", count)
+		}
+	}
+}
+
+func parseFile(ctx context.Context, body io.ReadCloser) []*Host {
+	hosts := make([]*Host, 0)
+	defer func() {
+		r := recover()
+		if r != nil {
+			fmt.Printf("error parsing host file; %s\n", r)
+		}
+	}()
+
+	data, err := io.ReadAll(body)
+	body.Close()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return nil
 	}
 
-	bodies := ReadFiles(ctx, files)
-	for body := range bodies {
-		data, err := io.ReadAll(body)
-		body.Close()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	lines := strings.Split(string(data), "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 
-		lines := strings.Split(string(data), "\n")
+		var comment string
+		commentIndex := strings.Index(line, "#")
+		if commentIndex != -1 {
+			// Pull the comment for the line for
+			// later use.
+			comment = strings.TrimSpace(
+				line[commentIndex+1:],
+			)
 
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if line == "" || strings.HasPrefix(line, "#") {
-				continue
-			}
+			// Trim the comment from the line.
+			line = strings.TrimSpace(
+				line[:commentIndex],
+			)
+		}
 
-			var comment string
-			commentIndex := strings.Index(line, "#")
-			if commentIndex != -1 {
-				// Pull the comment for the line for
-				// later use.
-				comment = strings.TrimSpace(
-					line[commentIndex+1:],
-				)
+		first := strings.Index(line, " ")
+		if first == -1 {
+			continue
+		}
 
-				// Trim the comment from the line.
-				line = strings.TrimSpace(
-					line[:commentIndex],
-				)
-			}
+		// Pull the IP
+		ip := net.ParseIP(line[:first])
+		if ip == nil {
+			continue
+		}
 
-			cols := strings.Split(line, " ")
-			if len(cols) != columns {
-				continue
-			}
+		tail := len(line) - 1
+		if commentIndex != -1 {
+			tail = commentIndex - 1
+		}
 
-			hosts = append(hosts, Host{
-				IP:      net.ParseIP(cols[0]),
-				Domain:  cols[1],
+		names := strings.Split(
+			strings.TrimSpace(
+				line[first+1:tail],
+			), " ")
+		if len(names) < 1 {
+			continue
+		}
+
+		for _, name := range names {
+			hosts = append(hosts, &Host{
+				IP:      ip,
+				Domain:  name,
 				Comment: comment,
 			})
 		}
