@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"testing"
+	"unsafe"
 )
 
 func Test_HostFile_ReadHosts(t *testing.T) {
@@ -11,9 +12,21 @@ func Test_HostFile_ReadHosts(t *testing.T) {
 
 	hosts := ReadHosts(ctx, "testdata/remote/")
 
-	for _, host := range hosts {
-		t.Logf("%s", host)
+	records := hosts.Records("remote", "block", "pihole")
+	for _, host := range records {
+		t.Logf("%+v", host)
 	}
+
+	t.Logf("%d Hosts: size %d", len(records), size(records))
+}
+
+func size(records []*Record) uintptr {
+	total := uintptr(0)
+	for _, record := range records {
+		total += uintptr(unsafe.Sizeof(*record))
+	}
+
+	return total
 }
 
 func Test_HostFile_GetHost(t *testing.T) {

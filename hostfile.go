@@ -12,6 +12,28 @@ import (
 	stream "go.atomizer.io/stream"
 )
 
+type Hosts []*Host
+
+func (h Hosts) Records(src, cat string, tags ...string) []*Record {
+	records := make([]*Record, 0)
+	for _, host := range h {
+		records = append(records, host.Record(src, cat, tags...))
+	}
+	return records
+}
+
+func (h Hosts) Len() int {
+	return len(h)
+}
+
+func (h Hosts) Less(i, j int) bool {
+	return h[i].Domain < h[j].Domain
+}
+
+func (h Hosts) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
 // Host defines the structure of a host record
 // from a hosts file similar to /etc/hosts
 // Example: 0.0.0.0 example.com # comment
@@ -41,29 +63,14 @@ func (h *Host) Record(src, cat string, tags ...string) *Record {
 	}
 }
 
-// Hosts is a slice of Hosts
-type Hosts []Host
-
-func (h Hosts) Len() int {
-	return len(h)
-}
-
-func (h Hosts) Less(i, j int) bool {
-	return h[i].Domain < h[j].Domain
-}
-
-func (h Hosts) Swap(i, j int) {
-	h[i], h[j] = h[j], h[i]
-}
-
 const columns = 2
 
 // ReadHosts reads host files from the provided directories
-func ReadHosts(ctx context.Context, path string) []*Host {
-	var hosts []*Host
+func ReadHosts(ctx context.Context, path string) Hosts {
+	var hosts Hosts
 
 	count := 0
-	bodies := ReadFiles(ctx, ReadDirectory(ctx, path))
+	bodies := ReadFiles(ctx, ReadDirectory(ctx, path, ".hosts"))
 	for {
 		select {
 		case <-ctx.Done():
@@ -80,8 +87,8 @@ func ReadHosts(ctx context.Context, path string) []*Host {
 	}
 }
 
-func parseFile(ctx context.Context, body io.ReadCloser) []*Host {
-	hosts := make([]*Host, 0)
+func parseFile(ctx context.Context, body io.ReadCloser) Hosts {
+	hosts := Hosts{}
 	defer func() {
 		r := recover()
 		if r != nil {

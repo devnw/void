@@ -6,10 +6,12 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 	"time"
 
 	stream "go.atomizer.io/stream"
+	"go.structs.dev/gen"
 )
 
 // ReadFiles reads the files at the path provided
@@ -45,7 +47,11 @@ func ReadFiles(
 
 // ReadDirectory recursively reads through the directory structure
 // providing a channel of file paths
-func ReadDirectory(ctx context.Context, dir string) <-chan string {
+func ReadDirectory(
+	ctx context.Context,
+	dir string,
+	exts ...string,
+) <-chan string {
 	out := make(chan string)
 
 	go func() {
@@ -63,6 +69,12 @@ func ReadDirectory(ctx context.Context, dir string) <-chan string {
 				i, err := file.Info()
 				if err != nil {
 					continue
+				}
+
+				if len(exts) > 0 {
+					if !gen.Has(exts, filepath.Ext(i.Name())) {
+						continue
+					}
 				}
 
 				select {

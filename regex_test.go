@@ -8,12 +8,12 @@ import (
 	"go.devnw.com/event"
 )
 
-// Steven Black Block List: https://github.com/mmotti/pihole-regex
+// Steven Black Block List: https://github.com/StevenBlack/hosts
 //go:generate curl https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts -o ./testdata/remote/stevenblack_block.hosts
 
 // Regex Block List and False-Positive Allow List: https://github.com/mmotti/pihole-regex
 //go:generate curl https://raw.githubusercontent.com/mmotti/pihole-regex/master/regex.list -o ./testdata/remote/mmotti_block.regex
-//go:generate curl https://github.com/mmotti/pihole-regex/blob/master/whitelist.list -o ./testdata/remote/mmotti_allow.direct
+//go:generate curl https://raw.githubusercontent.com/mmotti/pihole-regex/master/whitelist.list -o ./testdata/remote/mmotti_allow.direct
 
 // Firebog List of Lists: https://firebog.net/
 //go:generate curl https://v.firebog.net/hosts/lists.php?type=all -o ./testdata/remote/firebog_block.lists
@@ -24,7 +24,7 @@ import (
 //go:generate curl https://www.github.developerdan.com/hosts/lists/amp-hosts-extended.txt -o ./testdata/remote/ddanamp_block.hosts
 //go:generate curl https://www.github.developerdan.com/hosts/lists/dating-services-extended.txt -o ./testdata/remote/ddandating_block.hosts
 //go:generate curl https://www.github.developerdan.com/hosts/lists/hate-and-junk-extended.txt -o ./testdata/remote/ddanhatejunk_block.hosts
-//go:generaet curl https://www.github.developerdan.com/hosts/lists/tracking-aggressive-extended.txt -o ./testdata/remote/ddantracking_block.hosts
+//go:generate curl https://www.github.developerdan.com/hosts/lists/tracking-aggressive-extended.txt -o ./testdata/remote/ddantracking_block.hosts
 
 func Test_Match(t *testing.T) {
 	tests := map[string]struct {
