@@ -6,12 +6,11 @@ import (
 	"go.devnw.com/event"
 )
 
-func AllowResolver(
+func BlockResolver(
 	ctx context.Context,
 	pub *event.Publisher,
-	upstream chan<- *Request,
 	records ...*Record,
-) (*Allow, error) {
+) (*Block, error) {
 	err := checkNil(ctx, pub)
 	if err != nil {
 		return nil, err
@@ -22,38 +21,36 @@ func AllowResolver(
 		return nil, err
 	}
 
-	return &Allow{
-		Matcher:  m,
-		ctx:      ctx,
-		pub:      pub,
-		upstream: upstream,
+	return &Block{
+		Matcher: m,
+		ctx:     ctx,
+		pub:     pub,
 	}, nil
 }
 
-type Allow struct {
+type Block struct {
 	Matcher
 	ctx      context.Context
 	pub      *event.Publisher
 	upstream chan<- *Request
 }
 
-func (a *Allow) Intercept(
+func (b *Block) Intercept(
 	ctx context.Context,
 	req *Request,
 ) (*Request, bool) {
 	// Check for match
-	record := a.Match(ctx, req.Record())
+	record := b.Match(ctx, req.Record())
 	if record == nil || record.IP == nil {
 
 		// No match continue to next resolver
 		return req, true
 	}
 
-	// Matched, send to upstream DNS servers
-	select {
-	case <-a.ctx.Done():
-	case <-ctx.Done():
-	case a.upstream <- req:
+	// Matched a blocked record
+	err := req.Block()
+	if err != nil {
+		// TODO: Log error
 	}
 
 	return nil, false
