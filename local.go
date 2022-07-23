@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/miekg/dns"
 	"go.devnw.com/event"
@@ -21,15 +22,30 @@ func LocalResolver(
 	}
 
 	// TODO: Add future support for specific record types
+	regex := []*Record{}
 	local := map[string]*Record{}
 	for _, r := range records {
-		local[r.Pattern] = r
+		switch r.Eval {
+		case REGEX, WILDCARD:
+			regex = append(regex, r)
+		case DIRECT:
+			local[r.Pattern] = r
+		}
+	}
+
+	var regexMatcher *Regex
+	if len(regex) > 0 {
+		regexMatcher, err = Match(ctx, pub, regex...)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &Local{
 		ctx:     ctx,
 		pub:     pub,
 		records: local,
+		regex:   regexMatcher,
 	}, nil
 }
 
@@ -68,16 +84,26 @@ func (l *Local) Intercept(
 
 	// Only support A, AAAA, and CNAME records for local
 	// records for now
-	//if req.r.Question[0].Qtype != dns.TypeA ||
-	//	//	req.r.Question[0].Qtype != dns.TypeAAAA || // This is ipv6
-	//	req.r.Question[0].Qtype != dns.TypeCNAME {
-	//	return req, true
-	//}
+	if req.r.Question[0].Qtype != dns.TypeA &&
+		req.r.Question[0].Qtype != dns.TypeAAAA && // This is ipv6
+		req.r.Question[0].Qtype != dns.TypeCNAME {
+		return req, true
+	}
 
 	// Found in allow list, continue with next handler
 	l.recordsMu.RLock()
 	r, ok := l.records[req.Record()]
 	l.recordsMu.RUnlock()
+
+	// Not found in the direct list, check the regex
+	if !ok && l.regex != nil {
+		select {
+		case <-ctx.Done():
+			return req, true
+		// TODO: Add configurable timeout
+		case r, ok = <-l.regex.Match(ctx, req.Record(), time.Second):
+		}
+	}
 
 	if ok && len(r.IP) > 0 {
 		req.r.Answer = append(req.r.Answer, &dns.A{
@@ -102,6 +128,8 @@ func (l *Local) Intercept(
 				}
 			})
 		}
+
+		// TODO: Add Event for local record
 	}
 
 	return req, true

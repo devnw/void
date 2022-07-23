@@ -21,13 +21,31 @@ func Match(
 	patternChans := make([]chan<- matcher, 0, len(records))
 
 	for _, record := range records {
-		exp, err := regexp.Compile(record.Pattern)
-		if err != nil {
-			pub.ErrorFunc(ctx, func() error {
-				return fmt.Errorf("%s: %s", record.Pattern, err)
-			})
+		var exp *regexp.Regexp
+		var err error
 
+		if record.Eval != REGEX && record.Eval != WILDCARD {
 			continue
+		}
+
+		if record.Eval == WILDCARD {
+			exp, err = Wildcard(record.Pattern)
+			if err != nil {
+				pub.ErrorFunc(ctx, func() error {
+					return fmt.Errorf("%s: %s", record.Pattern, err)
+				})
+
+				continue
+			}
+		} else {
+			exp, err = regexp.Compile(record.Pattern)
+			if err != nil {
+				pub.ErrorFunc(ctx, func() error {
+					return fmt.Errorf("%s: %s", record.Pattern, err)
+				})
+
+				continue
+			}
 		}
 
 		in := make(chan matcher)

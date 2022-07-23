@@ -33,39 +33,52 @@ func Test_Match(t *testing.T) {
 		matched bool
 	}{
 		"match-ipv4": {
-			regex:   &Record{Pattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"},
+			regex: &Record{
+				Pattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
+				Eval:    REGEX,
+			},
 			input:   "1.1.1.1",
 			matched: true,
 		},
 		"match-ipv4_": {
-			regex:   &Record{Pattern: ipv4Reg},
+			regex:   &Record{Pattern: ipv4Reg, Eval: REGEX},
 			input:   "1.1.1.1",
 			matched: true,
 		},
 		"match-ipv4_bad": {
-			regex:   &Record{Pattern: ipv4Reg},
+			regex:   &Record{Pattern: ipv4Reg, Eval: REGEX},
 			input:   "asdf1.1.1",
 			matched: false,
 		},
 		"wildcard_domain": {
-			regex:   &Record{Pattern: `(\.|^)domain\.tld$`},
+			regex:   &Record{Pattern: `(\.|^)domain\.tld$`, Eval: REGEX},
 			input:   "domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_sub": {
-			regex:   &Record{Pattern: `(\.|^)domain\.tld$`},
+			regex:   &Record{Pattern: `(\.|^)domain\.tld$`, Eval: REGEX},
 			input:   "test.domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_multi_sub": {
-			regex:   &Record{Pattern: `(\.|^)domain\.tld$`},
+			regex:   &Record{Pattern: `(\.|^)domain\.tld$`, Eval: REGEX},
 			input:   "test2.test.domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_mismatch": {
-			regex:   &Record{Pattern: `(\.|^)domain\.tld$`},
+			regex:   &Record{Pattern: `(\.|^)domain\.tld$`, Eval: REGEX},
 			input:   "void.tld",
 			matched: false,
+		},
+		"wildcard_domain_from_Wild": {
+			regex:   &Record{Pattern: `*domain.tld`, Eval: WILDCARD},
+			input:   "domain.tld",
+			matched: true,
+		},
+		"wildcard_domain_from_Wild_subdomain": {
+			regex:   &Record{Pattern: `*domain.tld`, Eval: WILDCARD},
+			input:   "test.domain.tld",
+			matched: true,
 		},
 	}
 
@@ -79,12 +92,12 @@ func Test_Match(t *testing.T) {
 
 			r, err := Match(ctx, pub, test.regex)
 			if err != nil {
-				t.Errorf("unexpected error: %v", err)
+				t.Fatalf("unexpected error: %v", err)
 			}
 
 			match, ok := <-r.Match(ctx, test.input, time.Second)
 			if ok != test.matched {
-				t.Errorf("expected %v, got %v", test.matched, ok)
+				t.Fatalf("expected %v, got %v", test.matched, ok)
 			}
 
 			// Check to see if the match is supposed to fail and the
@@ -94,7 +107,7 @@ func Test_Match(t *testing.T) {
 			}
 
 			if match.Pattern != test.regex.Pattern {
-				t.Errorf("expected %v, got %v", test.regex, match)
+				t.Fatalf("expected %v, got %v", test.regex, match)
 			}
 		})
 	}
