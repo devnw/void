@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -90,10 +91,16 @@ func (l *Local) Intercept(
 		return req, true
 	}
 
+	fmt.Printf("Record: %s\n", req.Record())
+	for _, r := range l.records {
+		fmt.Printf("Record: %s\n", r)
+	}
 	// Found in allow list, continue with next handler
 	l.recordsMu.RLock()
 	r, ok := l.records[req.Record()]
 	l.recordsMu.RUnlock()
+
+	fmt.Printf("OK: %v\n", ok)
 
 	// Not found in the direct list, check the regex
 	if !ok && l.regex != nil {
@@ -106,15 +113,16 @@ func (l *Local) Intercept(
 	}
 
 	if ok && len(r.IP) > 0 {
-		req.r.Answer = append(req.r.Answer, &dns.A{
-			Hdr: dns.RR_Header{
-				Name:   req.r.Question[0].Name,
-				Rrtype: dns.TypeA,
-				Class:  dns.ClassINET,
-				Ttl:    60,
-			},
-			A: r.IP,
-		})
+		req.r.Answer = append(req.r.Answer,
+			&dns.A{
+				Hdr: dns.RR_Header{
+					Name:   req.r.Question[0].Name,
+					Rrtype: dns.TypeA,
+					Class:  dns.ClassINET,
+					Ttl:    60,
+				},
+				A: r.IP,
+			})
 
 		err := req.Answer(req.r)
 		if err != nil {
@@ -130,6 +138,7 @@ func (l *Local) Intercept(
 		}
 
 		// TODO: Add Event for local record
+		return nil, false
 	}
 
 	return req, true

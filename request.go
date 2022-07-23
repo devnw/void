@@ -27,6 +27,7 @@ type Request struct {
 
 // Record returns the requested domain
 func (r *Request) Record() string {
+	fmt.Println("Q:", r.r.Question[0].Name)
 	if r.record == "" {
 		r.record = strings.TrimSuffix(r.r.Question[0].Name, ".")
 	}
