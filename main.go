@@ -81,10 +81,24 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 		//	}
 		//}()
 
-		upstream, err := Up(ctx, pub, "1.1.1.1")
+		upstream, err := Up(ctx, pub, "1.1.1.1", "1.0.0.1")
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		up := []chan<- *Request{}
+		for _, u := range upstream {
+			toUp := make(chan *Request)
+			i.Scale(
+				ctx,
+				toUp,
+				u.Intercept,
+			)
+			up = append(up, toUp)
+		}
+
+		upStreamFan := make(chan *Request)
+		go stream.FanOut(ctx, upStreamFan, up...)
 
 		cache := &Cache{
 			ctx,
@@ -92,14 +106,41 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 			ttl.NewCache[string, *dns.Msg](ctx, time.Minute, true),
 		}
 
-		_ = i.Scale(
+		local, err := LocalResolver(ctx, pub)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		allow, err := AllowResolver(ctx, pub, upStreamFan)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		block, err := BlockResolver(ctx, pub)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		go stream.Pipe( // Upstream FanOut
 			ctx,
-			i.Scale(
+			i.Scale( // Block
 				ctx,
-				requests,
-				cache.Intercept,
+				i.Scale( // Allow
+					ctx,
+					i.Scale( // Local
+						ctx,
+						i.Scale( // Cache
+							ctx,
+							requests,
+							cache.Intercept,
+						),
+						local.Intercept,
+					),
+					allow.Intercept,
+				),
+				block.Intercept,
 			),
-			upstream[0].Intercept,
+			upStreamFan,
 		)
 		if err != nil {
 			log.Fatal(err)

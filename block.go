@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"go.devnw.com/event"
 )
@@ -39,10 +40,11 @@ func (b *Block) Intercept(
 	ctx context.Context,
 	req *Request,
 ) (*Request, bool) {
+	fmt.Println("BlockResolver.Intercept")
 	// Check for match
 	record := b.Match(ctx, req.Record())
 	if record == nil || record.IP == nil {
-
+		fmt.Println("BlockResolver.Intercept: No match")
 		// No match continue to next resolver
 		return req, true
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/miekg/dns"
 	"go.devnw.com/event"
@@ -48,6 +49,7 @@ func (l *Local) Intercept(
 	ctx context.Context,
 	req *Request,
 ) (*Request, bool) {
+	fmt.Println("LocalResolver.Intercept")
 	// Only support A, AAAA, and CNAME records for local
 	// records for now
 	if req.r.Question[0].Qtype != dns.TypeA &&
