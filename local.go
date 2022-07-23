@@ -42,6 +42,7 @@ type Local struct {
 	pub       *event.Publisher
 	records   map[string]*Record
 	recordsMu sync.RWMutex
+	regex     *Regex
 }
 
 // Add adds a local record to the local resolver

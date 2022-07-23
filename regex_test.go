@@ -28,42 +28,42 @@ import (
 
 func Test_Match(t *testing.T) {
 	tests := map[string]struct {
-		regex   string
+		regex   *Record
 		input   string
 		matched bool
 	}{
 		"match-ipv4": {
-			regex:   "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
+			regex:   &Record{Domain: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"},
 			input:   "1.1.1.1",
 			matched: true,
 		},
 		"match-ipv4_": {
-			regex:   ipv4Reg,
+			regex:   &Record{Domain: ipv4Reg},
 			input:   "1.1.1.1",
 			matched: true,
 		},
 		"match-ipv4_bad": {
-			regex:   ipv4Reg,
+			regex:   &Record{Domain: ipv4Reg},
 			input:   "asdf1.1.1",
 			matched: false,
 		},
 		"wildcard_domain": {
-			regex:   `(\.|^)domain\.tld$`,
+			regex:   &Record{Domain: `(\.|^)domain\.tld$`},
 			input:   "domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_sub": {
-			regex:   `(\.|^)domain\.tld$`,
+			regex:   &Record{Domain: `(\.|^)domain\.tld$`},
 			input:   "test.domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_multi_sub": {
-			regex:   `(\.|^)domain\.tld$`,
+			regex:   &Record{Domain: `(\.|^)domain\.tld$`},
 			input:   "test2.test.domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_mismatch": {
-			regex:   `(\.|^)domain\.tld$`,
+			regex:   &Record{Domain: `(\.|^)domain\.tld$`},
 			input:   "void.tld",
 			matched: false,
 		},
@@ -89,11 +89,11 @@ func Test_Match(t *testing.T) {
 
 			// Check to see if the match is supposed to fail and the
 			// output matches the expected value
-			if !test.matched == (len(match) == 0) {
+			if !test.matched == (match == nil) {
 				return
 			}
 
-			if match != test.regex {
+			if match.Domain != test.regex.Domain {
 				t.Errorf("expected %v, got %v", test.regex, match)
 			}
 		})
@@ -101,7 +101,7 @@ func Test_Match(t *testing.T) {
 }
 
 func Benchmark_Match(b *testing.B) {
-	regex := `(\.|^)domain\.tld$`
+	regex := &Record{Domain: `(\.|^)domain\.tld$`}
 	input := "domain.tld"
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -121,7 +121,7 @@ func Benchmark_Match(b *testing.B) {
 			b.Fatalf("expected match")
 		}
 
-		if match != regex {
+		if match.Domain != regex.Domain {
 			b.Fatalf("expected %v, got %v", regex, match)
 		}
 	}

@@ -14,17 +14,17 @@ import (
 func Match(
 	ctx context.Context,
 	pub *event.Publisher,
-	patterns ...string,
+	records ...*Record,
 ) (*Regex, error) {
 	requests := make(chan matcher)
 
-	patternChans := make([]chan<- matcher, 0, len(patterns))
+	patternChans := make([]chan<- matcher, 0, len(records))
 
-	for _, pattern := range patterns {
-		exp, err := regexp.Compile(pattern)
+	for _, record := range records {
+		exp, err := regexp.Compile(record.Domain)
 		if err != nil {
 			pub.ErrorFunc(ctx, func() error {
-				return fmt.Errorf("%s: %s", pattern, err)
+				return fmt.Errorf("%s: %s", record.Domain, err)
 			})
 		}
 
@@ -38,13 +38,13 @@ func Match(
 		s := stream.Scaler[matcher, struct{}]{
 			Wait: time.Nanosecond,
 			Life: time.Millisecond,
-			Fn:   (&expr{exp}).match,
+			Fn:   (&expr{record, exp}).match,
 		}
 
 		_, err = s.Exec(ctx, in)
 		if err != nil {
 			pub.ErrorFunc(ctx, func() error {
-				return fmt.Errorf("%s: %s", pattern, err)
+				return fmt.Errorf("%s: %s", record.Domain, err)
 			})
 		}
 	}
@@ -67,14 +67,19 @@ func (r *Regex) Match(
 	ctx context.Context,
 	data string,
 	timeout time.Duration,
-) <-chan string {
-	out := make(chan string, 1)
+) <-chan *Record {
+	out := make(chan *Record, 1)
 
 	go func() {
 		defer close(out)
 
+		// Collapse request immediately when there are no patterns
+		if r.patterns == 0 {
+			return
+		}
+
 		ctx, cancel := context.WithTimeout(ctx, timeout)
-		detection := make(chan string)
+		detection := make(chan *Record)
 
 		// Push the match request
 		select {
@@ -93,16 +98,16 @@ func (r *Regex) Match(
 			select {
 			case <-ctx.Done():
 				return
-			case pattern, ok := <-detection:
+			case record, ok := <-detection:
 				if !ok {
 					return
 				}
 
-				if pattern == "" {
+				if record == nil {
 					continue
 				}
 
-				out <- pattern
+				out <- record
 			}
 		}
 	}()
@@ -114,29 +119,30 @@ type matchReq struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	data   string
-	match  chan string
+	match  chan *Record
 }
 
 func (m *matchReq) Data() (context.Context, string) {
 	return m.ctx, m.data
 }
 
-func (m *matchReq) Matched(ctx context.Context, pattern string) {
+func (m *matchReq) Matched(ctx context.Context, record *Record) {
 	select {
 	case <-ctx.Done():
 		return
 	case <-m.ctx.Done():
 		return
-	case m.match <- pattern:
+	case m.match <- record:
 	}
 }
 
 type matcher interface {
 	Data() (context.Context, string)
-	Matched(ctx context.Context, pattern string)
+	Matched(ctx context.Context, record *Record)
 }
 
 type expr struct {
+	record  *Record
 	pattern *regexp.Regexp
 }
 
@@ -153,12 +159,12 @@ func (e *expr) match(
 	case <-ctx.Done():
 		return struct{}{}, false
 	default:
-		match := ""
+		var matched *Record
 		if e.pattern.MatchString(data) {
-			match = e.pattern.String()
+			matched = e.record
 		}
 
-		req.Matched(ctx, match)
+		req.Matched(ctx, matched)
 	}
 
 	return struct{}{}, false

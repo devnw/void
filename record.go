@@ -24,6 +24,8 @@ type Record struct {
 	Comment  string
 }
 
+// TODO: Add String()
+
 // MarshalJSON implements the json.Marshaler interface
 func (r *Record) MarshalJSON() ([]byte, error) {
 	d := struct {
