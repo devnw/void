@@ -16,6 +16,10 @@ import (
 	"go.devnw.com/ttl"
 )
 
+// DEFAULTTTL defines the default ttl for records that either do not
+// provide a TTL, are blocked, or are local records.
+const DEFAULTTTL = 3600
+
 var version string
 
 func main() {

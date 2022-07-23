@@ -7,9 +7,96 @@ import (
 	"io"
 	"net"
 	"os"
+	"sync"
+	"time"
 
-	stream "go.atomizer.io/stream"
+	"go.atomizer.io/stream"
+	"go.devnw.com/event"
 )
+
+type Matcher interface {
+	Match(context.Context, string) *Record
+	Add(*Record)
+}
+
+func NewMatcher(
+	ctx context.Context,
+	pub *event.Publisher,
+	records ...*Record,
+) (Matcher, error) {
+	err := checkNil(ctx, pub)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Add future support for specific record types
+	regex := []*Record{}
+	directs := map[string]*Record{}
+	for _, r := range records {
+		switch r.Eval {
+		case REGEX, WILDCARD:
+			regex = append(regex, r)
+		case DIRECT:
+			directs[r.Pattern] = r
+		}
+	}
+
+	var regexMatcher *Regex
+	if len(regex) > 0 {
+		regexMatcher, err = Match(ctx, pub, regex...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &m{
+		ctx:     ctx,
+		pub:     pub,
+		records: directs,
+		regex:   regexMatcher,
+	}, nil
+}
+
+type m struct {
+	ctx       context.Context
+	pub       *event.Publisher
+	records   map[string]*Record
+	recordsMu sync.RWMutex
+	regex     *Regex
+}
+
+func (m *m) Add(r *Record) {
+	m.recordsMu.Lock()
+	m.records[r.Pattern] = r
+	m.recordsMu.Unlock()
+}
+
+func (m *m) Match(ctx context.Context, domain string) *Record {
+	if m.records == nil {
+		return nil
+	}
+
+	m.recordsMu.RLock()
+	r, ok := m.records[domain]
+	m.recordsMu.RUnlock()
+
+	if ok {
+		return r
+	}
+
+	if m.regex != nil {
+		select {
+		case <-ctx.Done():
+		// TODO: Add configurable timeout
+		case r, ok = <-m.regex.Match(ctx, domain, time.Second):
+			if ok {
+				return r
+			}
+		}
+	}
+
+	return nil
+}
 
 // Record defines the void-specific struct for a DNS record
 // indicating the type as well as category, etc...

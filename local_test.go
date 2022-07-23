@@ -57,7 +57,7 @@ func Test_Local_Intercept(t *testing.T) {
 					Name:   "test.example.tld.",
 					Rrtype: dns.TypeA,
 					Class:  dns.ClassINET,
-					Ttl:    60,
+					Ttl:    DEFAULTTTL,
 				},
 				A: net.ParseIP("192.168.0.1"),
 			},
