@@ -14,7 +14,7 @@ import (
 // Record defines the void-specific struct for a DNS record
 // indicating the type as well as category, etc...
 type Record struct {
-	Domain   string
+	Pattern  string
 	Type     Type
 	Eval     EvalType
 	IP       net.IP
@@ -38,7 +38,7 @@ func (r *Record) MarshalJSON() ([]byte, error) {
 		Source   string   `json:"source,omitempty"`
 		Comment  string   `json:"comment,omitempty"`
 	}{
-		Domain:   r.Domain,
+		Domain:   r.Pattern,
 		Type:     r.Type.String(),
 		Eval:     r.Eval.String(),
 		IP:       r.IP.String(),
@@ -68,7 +68,7 @@ func (r *Record) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	r.Domain = d.Domain
+	r.Pattern = d.Domain
 	r.Type = Type(StringToType[d.Type])
 	r.Eval = EvalStringToType(d.Eval)
 	r.IP = net.ParseIP(d.IP)

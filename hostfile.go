@@ -53,7 +53,7 @@ type Host struct {
 // Record converts a host record to a void domain record
 func (h *Host) Record(src, cat string, tags ...string) *Record {
 	return &Record{
-		Domain:   h.Domain,
+		Pattern:  h.Domain,
 		IP:       h.IP,
 		Comment:  h.Comment,
 		Eval:     DIRECT,

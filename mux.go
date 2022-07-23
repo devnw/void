@@ -110,25 +110,25 @@ type void struct {
 
 func (v *void) Handler(next HandleFunc) HandleFunc {
 	d := &Record{
-		Domain:   "www.google.com",
+		Pattern:  "www.google.com",
 		Eval:     DIRECT,
 		Category: "advertising",
 		Tags:     []string{"advertising", "google"},
 	}
 
 	a := &Record{
-		Domain:   "google.com",
+		Pattern:  "google.com",
 		Eval:     DIRECT,
 		Category: "advertising",
 		Tags:     []string{"advertising", "google"},
 	}
 
 	v.denyMu.Lock()
-	v.deny[d.Domain] = d
+	v.deny[d.Pattern] = d
 	v.denyMu.Unlock()
 
 	v.allowMu.Lock()
-	v.allow[a.Domain] = a
+	v.allow[a.Pattern] = a
 	v.allowMu.Unlock()
 
 	return func(w dns.ResponseWriter, req *dns.Msg) {

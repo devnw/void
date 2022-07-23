@@ -23,7 +23,7 @@ func LocalResolver(
 	// TODO: Add future support for specific record types
 	local := map[string]*Record{}
 	for _, r := range records {
-		local[r.Domain] = r
+		local[r.Pattern] = r
 	}
 
 	return &Local{
@@ -50,7 +50,7 @@ type Local struct {
 // configuration file
 func (l *Local) Add(r *Record) {
 	l.recordsMu.Lock()
-	l.records[r.Domain] = r
+	l.records[r.Pattern] = r
 	l.recordsMu.Unlock()
 }
 

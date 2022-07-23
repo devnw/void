@@ -33,37 +33,37 @@ func Test_Match(t *testing.T) {
 		matched bool
 	}{
 		"match-ipv4": {
-			regex:   &Record{Domain: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"},
+			regex:   &Record{Pattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"},
 			input:   "1.1.1.1",
 			matched: true,
 		},
 		"match-ipv4_": {
-			regex:   &Record{Domain: ipv4Reg},
+			regex:   &Record{Pattern: ipv4Reg},
 			input:   "1.1.1.1",
 			matched: true,
 		},
 		"match-ipv4_bad": {
-			regex:   &Record{Domain: ipv4Reg},
+			regex:   &Record{Pattern: ipv4Reg},
 			input:   "asdf1.1.1",
 			matched: false,
 		},
 		"wildcard_domain": {
-			regex:   &Record{Domain: `(\.|^)domain\.tld$`},
+			regex:   &Record{Pattern: `(\.|^)domain\.tld$`},
 			input:   "domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_sub": {
-			regex:   &Record{Domain: `(\.|^)domain\.tld$`},
+			regex:   &Record{Pattern: `(\.|^)domain\.tld$`},
 			input:   "test.domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_multi_sub": {
-			regex:   &Record{Domain: `(\.|^)domain\.tld$`},
+			regex:   &Record{Pattern: `(\.|^)domain\.tld$`},
 			input:   "test2.test.domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_mismatch": {
-			regex:   &Record{Domain: `(\.|^)domain\.tld$`},
+			regex:   &Record{Pattern: `(\.|^)domain\.tld$`},
 			input:   "void.tld",
 			matched: false,
 		},
@@ -93,7 +93,7 @@ func Test_Match(t *testing.T) {
 				return
 			}
 
-			if match.Domain != test.regex.Domain {
+			if match.Pattern != test.regex.Pattern {
 				t.Errorf("expected %v, got %v", test.regex, match)
 			}
 		})
@@ -101,7 +101,7 @@ func Test_Match(t *testing.T) {
 }
 
 func Benchmark_Match(b *testing.B) {
-	regex := &Record{Domain: `(\.|^)domain\.tld$`}
+	regex := &Record{Pattern: `(\.|^)domain\.tld$`}
 	input := "domain.tld"
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -121,7 +121,7 @@ func Benchmark_Match(b *testing.B) {
 			b.Fatalf("expected match")
 		}
 
-		if match.Domain != regex.Domain {
+		if match.Pattern != regex.Pattern {
 			b.Fatalf("expected %v, got %v", regex, match)
 		}
 	}
