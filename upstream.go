@@ -188,8 +188,13 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 	out := make(chan *dns.Conn)
 
 	go func() {
-		ticker := time.NewTicker(u.reconnect)
-		defer ticker.Stop()
+		var ticker <-chan time.Time
+		if u.proto != UDP {
+			t := time.NewTicker(u.reconnect)
+			defer t.Stop()
+
+			ticker = t.C
+		}
 		defer close(out)
 
 		// Initial connection
@@ -210,9 +215,11 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 			select {
 			case <-ctx.Done():
 				return
-			case <-ticker.C:
+			case <-ticker:
 				u.reconn(ctx, conn)
+				fmt.Printf("[%s] reconnecting\n", u.String())
 			case u.new <- u.reconn(ctx, conn):
+				fmt.Printf("[%s] new connection request\n", u.String())
 			case out <- conn:
 			}
 		}
