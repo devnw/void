@@ -86,8 +86,9 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 			log.Fatal(err)
 		}
 
-		up := []chan<- *Request{}
+		up := make([]chan<- *Request, 0, len(upstream))
 		for _, u := range upstream {
+			fmt.Printf("[%s] connecting\n", u.String())
 			toUp := make(chan *Request)
 			i.Scale(
 				ctx,

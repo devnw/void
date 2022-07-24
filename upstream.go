@@ -85,13 +85,13 @@ func Up(
 	ctx context.Context,
 	pub *event.Publisher,
 	addresses ...string,
-) ([]Upstream, error) {
+) ([]*Upstream, error) {
 	err := checkNil(ctx, pub)
 	if err != nil {
 		return nil, err
 	}
 
-	upstreams := make([]Upstream, 0, len(addresses))
+	upstreams := make([]*Upstream, 0, len(addresses))
 
 	for _, address := range addresses {
 		matches := addrReg.FindStringSubmatch(address)
@@ -130,7 +130,7 @@ func Up(
 			}
 		}
 
-		u := Upstream{
+		u := &Upstream{
 			proto:     proto,
 			address:   net.ParseIP(matches[2]),
 			port:      uint16(port),
@@ -141,6 +141,8 @@ func Up(
 				TLSConfig: tlsConfig,
 			},
 		}
+
+		fmt.Printf("[%s] creating client\n", u.String())
 
 		// Initialize the upstream connection
 		u.conn = u.init(ctx)
@@ -270,6 +272,8 @@ func (u *Upstream) Intercept(
 		if !ok {
 			return
 		}
+
+		fmt.Printf("[%s] sending request\n", u.String())
 
 		// Send the Request
 		resp, _, err := u.client.ExchangeWithConn(req.r, conn)
