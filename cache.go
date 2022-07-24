@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/miekg/dns"
@@ -47,11 +48,11 @@ func (c *Cache) Intercept(
 	if !ok || r == nil {
 		// Add hook for final response to cache
 		req.w = &interceptor{
-			c.ctx,
-			c.cache,
-			c.pub,
-			req,
-			req.w.WriteMsg, // TODO: Determine if this is the correct pattern
+			ctx:   c.ctx,
+			cache: c.cache,
+			pub:   c.pub,
+			req:   req,
+			next:  req.w.WriteMsg, // TODO: Determine if this is the correct pattern
 		}
 
 		return req, true
@@ -82,9 +83,10 @@ type interceptor struct {
 	pub   *event.Publisher
 	req   *Request
 	next  func(*dns.Msg) error
+	once  sync.Once
 }
 
-func (i *interceptor) WriteMsg(res *dns.Msg) error {
+func (i *interceptor) WriteMsg(res *dns.Msg) (err error) {
 	if len(res.Answer) == 0 {
 		return i.next(res)
 	}
@@ -93,21 +95,27 @@ func (i *interceptor) WriteMsg(res *dns.Msg) error {
 	// first answer only
 	a := res.Answer[0]
 	if a.Header() != nil {
-		ttl := time.Second * time.Duration(a.Header().Ttl)
+		i.once.Do(func() {
+			ttl := time.Second * time.Duration(a.Header().Ttl)
 
-		// Set the cache value with record specific TTL
-		err := i.cache.SetTTL(i.ctx, i.req.Key(), res, ttl)
+			// Set the cache value with record specific TTL
+			err = i.cache.SetTTL(i.ctx, i.req.Key(), res, ttl)
+			if err != nil {
+				return
+			}
+
+			i.pub.EventFunc(i.ctx, func() event.Event {
+				return &CacheEvent{
+					Method: WRITE,
+					Record: i.req.String(),
+					TTL:    ttl,
+				}
+			})
+		})
+
 		if err != nil {
 			return err
 		}
-
-		i.pub.EventFunc(i.ctx, func() event.Event {
-			return &CacheEvent{
-				Method: WRITE,
-				Record: i.req.String(),
-				TTL:    ttl,
-			}
-		})
 	}
 
 	return i.next(res)
