@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/miekg/dns"
@@ -174,6 +175,7 @@ type Upstream struct {
 
 	// upstream connection
 	conn <-chan *dns.Conn
+	new  chan *dns.Conn
 
 	// Time before reconnecting the client
 	reconnect time.Duration
@@ -209,35 +211,41 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				// Attempt Reconnect
-				newConn, err := u.client.DialContext(ctx, u.addr())
-				if err != nil {
-					u.pub.ErrorFunc(ctx, func() error {
-						return Error{
-							Category: UPSTREAM,
-							Server:   u.String(),
-							Msg: fmt.Sprintf(
-								"failed to reconnect - retry in %s",
-								u.reconnect,
-							),
-							Inner: err,
-						}
-					})
-
-					continue
-				}
-
-				// Close the connection
-				conn.Close()
-
-				// Update the connection
-				conn = newConn
+				u.reconn(ctx, conn)
+			case u.new <- u.reconn(ctx, conn):
 			case out <- conn:
 			}
 		}
 	}()
 
 	return out
+}
+
+func (u *Upstream) reconn(ctx context.Context, conn *dns.Conn) *dns.Conn {
+	// Attempt Reconnect
+	newConn, err := u.client.DialContext(ctx, u.addr())
+	if err != nil {
+		u.pub.ErrorFunc(ctx, func() error {
+			return Error{
+				Category: UPSTREAM,
+				Server:   u.String(),
+				Msg: fmt.Sprintf(
+					"failed to reconnect - retry in %s",
+					u.reconnect,
+				),
+				Inner: err,
+			}
+		})
+
+		return conn
+	}
+
+	// Close the connection
+	//conn.Close()
+	conn = newConn
+
+	// Update the connection
+	return newConn
 }
 
 func (u *Upstream) String() string {
@@ -277,6 +285,22 @@ func (u *Upstream) Intercept(
 
 		// Send the Request
 		resp, _, err := u.client.ExchangeWithConn(req.r, conn)
+
+		// If the connection was broken, reconnect and retry
+		if errors.Is(err, syscall.EPIPE) {
+			select {
+			case <-ctx.Done():
+				return
+			case conn, ok := <-u.new:
+				if !ok {
+					return
+				}
+
+				fmt.Printf("[%s] reconnected", u.String())
+				resp, _, err = u.client.ExchangeWithConn(req.r, conn)
+			}
+		}
+
 		if err != nil {
 			u.pub.ErrorFunc(ctx, func() error {
 				return Error{

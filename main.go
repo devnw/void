@@ -13,7 +13,6 @@ import (
 	"go.atomizer.io/stream"
 	"go.devnw.com/alog"
 	"go.devnw.com/event"
-	"go.devnw.com/ttl"
 )
 
 // DEFAULTTTL defines the default ttl for records that either do not
@@ -81,7 +80,16 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 		//	}
 		//}()
 
-		upstream, err := Up(ctx, pub, "1.1.1.1", "1.0.0.1")
+		upstream, err := Up(
+			ctx,
+			pub,
+			"tcp-tls://1.1.1.1:853",
+			"tcp-tls://1.0.0.1:853",
+			"1.1.1.1",
+			"1.0.0.1",
+			"8.8.8.8",
+			"8.8.4.4",
+		)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -101,46 +109,47 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 		upStreamFan := make(chan *Request)
 		go stream.FanOut(ctx, upStreamFan, up...)
 
-		cache := &Cache{
-			ctx,
-			pub,
-			ttl.NewCache[string, *dns.Msg](ctx, time.Minute, true),
-		}
+		//cache := &Cache{
+		//	ctx,
+		//	pub,
+		//	ttl.NewCache[string, *dns.Msg](ctx, time.Minute, false),
+		//}
 
-		local, err := LocalResolver(ctx, pub)
-		if err != nil {
-			log.Fatal(err)
-		}
+		//local, err := LocalResolver(ctx, pub)
+		//if err != nil {
+		//	log.Fatal(err)
+		//}
 
-		allow, err := AllowResolver(ctx, pub, upStreamFan)
-		if err != nil {
-			log.Fatal(err)
-		}
+		//allow, err := AllowResolver(ctx, pub, upStreamFan)
+		//if err != nil {
+		//	log.Fatal(err)
+		//}
 
-		block, err := BlockResolver(ctx, pub)
-		if err != nil {
-			log.Fatal(err)
-		}
+		//block, err := BlockResolver(ctx, pub)
+		//if err != nil {
+		//	log.Fatal(err)
+		//}
 
 		go stream.Pipe( // Upstream FanOut
 			ctx,
-			i.Scale( // Block
-				ctx,
-				i.Scale( // Allow
-					ctx,
-					i.Scale( // Local
-						ctx,
-						i.Scale( // Cache
-							ctx,
-							requests,
-							cache.Intercept,
-						),
-						local.Intercept,
-					),
-					allow.Intercept,
-				),
-				block.Intercept,
-			),
+			requests,
+			//i.Scale( // Block
+			//	ctx,
+			//	i.Scale( // Allow
+			//		ctx,
+			//		i.Scale( // Local
+			//			ctx,
+			//			i.Scale( // Cache
+			//				ctx,
+			//				requests,
+			//				cache.Intercept,
+			//			),
+			//			local.Intercept,
+			//		),
+			//		allow.Intercept,
+			//	),
+			//	block.Intercept,
+			//),
 			upStreamFan,
 		)
 		if err != nil {
