@@ -104,7 +104,7 @@ func (i *interceptor) WriteMsg(res *dns.Msg) (err error) {
 		i.pub.EventFunc(i.ctx, func() event.Event {
 			return &CacheEvent{
 				Method: WRITE,
-				Record: i.req.String(),
+				Record: i.req.r.Question[0].Name,
 				TTL:    ttl,
 			}
 		})
@@ -132,12 +132,16 @@ type CacheEvent struct {
 }
 
 func (e *CacheEvent) String() string {
+	ip := "<missing>"
+	if e.Location != nil {
+		ip = fmt.Sprintf(" %s %s ", e.Record, e.Location)
+	}
 	return fmt.Sprintf(
 		"CACHE %s %s %s %s",
 		strings.ToUpper(string(e.Method)),
-		e.Location.String(),
-		e.TTL,
 		e.Record,
+		e.TTL,
+		ip,
 	)
 }
 
