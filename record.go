@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -110,7 +111,17 @@ type Record struct {
 	Comment  string
 }
 
-// TODO: Add String()
+func (r *Record) String() string {
+	return fmt.Sprintf(
+		"src: %s | cat: %s | %s: %s | ip: %s | tags [%s]",
+		r.Source,
+		r.Category,
+		r.Type,
+		r.Pattern,
+		r.IP,
+		strings.Join(r.Tags, ","),
+	)
+}
 
 // MarshalJSON implements the json.Marshaler interface
 func (r *Record) MarshalJSON() ([]byte, error) {

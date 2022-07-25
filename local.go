@@ -82,6 +82,15 @@ func (l *Local) Intercept(
 		})
 	}
 
-	// TODO: Add Event for local record
+	l.pub.EventFunc(ctx, func() event.Event {
+		return &Event{
+			Msg:      "answered using local resolver",
+			Name:     req.r.Question[0].Name,
+			Type:     dns.Type(req.r.Question[0].Qtype),
+			Category: LOCAL,
+			Server:   "local-resolver",
+			Record:   record,
+		}
+	})
 	return nil, false
 }

@@ -26,6 +26,10 @@ const (
 	UPSTREAM Category = "upstream"
 )
 
+func (c Category) String() string {
+	return string(c)
+}
+
 type Error struct {
 	Category Category `json:"category"`
 	Server   string   `json:"server"`

@@ -27,7 +27,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	port := 53 //00
+	port := 5300
 	root := &cobra.Command{
 		Use:     "void [flags]",
 		Short:   "void is a simple cluster based dns provider/sink",
@@ -135,18 +135,23 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 			log.Fatal(err)
 		}
 
-		allow, err := AllowResolver(ctx, pub, upStreamFan)
+		allow, err := AllowResolver(ctx, pub, upStreamFan,
+			&Record{
+				Pattern: "google.com",
+				Type:    DIRECT,
+			},
+		)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		block, err := BlockResolver(ctx, pub)
-		//		&Record{
-		//		Pattern: "*facebook.com",
-		//		Type:    WILDCARD,
-		//		Tags:    []string{"privacy", "advertising"},
-		//		Source:  "local",
-		//	})
+		block, err := BlockResolver(ctx, pub,
+			&Record{
+				Pattern: "*facebook.com",
+				Type:    WILDCARD,
+				Tags:    []string{"privacy", "advertising"},
+				Source:  "local",
+			})
 		if err != nil {
 			log.Fatal(err)
 		}

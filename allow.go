@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	"github.com/miekg/dns"
 	"go.devnw.com/event"
 )
 
@@ -54,6 +55,15 @@ func (a *Allow) Intercept(
 	case <-a.ctx.Done():
 	case <-ctx.Done():
 	case a.upstream <- req:
+		a.pub.EventFunc(ctx, func() event.Event {
+			return &Event{
+				Msg:      "query found in allow list",
+				Name:     req.r.Question[0].Name,
+				Type:     dns.Type(req.r.Question[0].Qtype),
+				Category: ALLOW,
+				Record:   record,
+			}
+		})
 	}
 
 	return nil, false
