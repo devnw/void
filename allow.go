@@ -45,7 +45,7 @@ func (a *Allow) Intercept(
 	fmt.Println("AllowResolver.Intercept")
 	// Check for match
 	record := a.Match(ctx, req.Record())
-	if record == nil || record.IP == nil {
+	if record == nil {
 
 		// No match continue to next resolver
 		return req, true

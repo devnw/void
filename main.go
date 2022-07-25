@@ -134,7 +134,13 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 			log.Fatal(err)
 		}
 
-		block, err := BlockResolver(ctx, pub)
+		block, err := BlockResolver(ctx, pub, &Record{
+			Pattern: "*google.com",
+			Type:    Type(dns.TypeA),
+			Eval:    WILDCARD,
+			Tags:    []string{"privacy", "advertising"},
+			Source:  "local",
+		})
 		if err != nil {
 			log.Fatal(err)
 		}

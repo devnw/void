@@ -43,7 +43,7 @@ func (b *Block) Intercept(
 	fmt.Println("BlockResolver.Intercept")
 	// Check for match
 	record := b.Match(ctx, req.Record())
-	if record == nil || record.IP == nil {
+	if record == nil {
 		fmt.Println("BlockResolver.Intercept: No match")
 		// No match continue to next resolver
 		return req, true
