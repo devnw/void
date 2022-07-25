@@ -27,7 +27,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	port := 5300 // 53
+	port := 53 //00
 	root := &cobra.Command{
 		Use:     "void [flags]",
 		Short:   "void is a simple cluster based dns provider/sink",
@@ -87,10 +87,10 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 			pub,
 			"tcp-tls://1.1.1.1:853",
 			"tcp-tls://1.0.0.1:853",
-			"1.1.1.1",
-			"1.0.0.1",
-			"8.8.8.8",
-			"8.8.4.4",
+			//"1.1.1.1",
+			//"1.0.0.1",
+			//"8.8.8.8",
+			//"8.8.4.4",
 		)
 		if err != nil {
 			log.Fatal(err)
@@ -98,7 +98,6 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 
 		up := make([]chan<- *Request, 0, len(upstream))
 		for _, u := range upstream {
-			fmt.Printf("[%s] connecting\n", u.String())
 			toUp := make(chan *Request)
 			i.Scale(
 				ctx,
@@ -117,13 +116,21 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 			ttl.NewCache[string, *dns.Msg](ctx, time.Minute, false),
 		}
 
-		local, err := LocalResolver(ctx, pub, &Record{
-			Pattern: "*kolhar.net",
-			Type:    WILDCARD,
-			IP:      net.ParseIP("192.168.0.3"),
-			Tags:    []string{"local", "kolhar"},
-			Source:  "local",
-		})
+		local, err := LocalResolver(ctx, pub,
+			&Record{
+				Pattern: "dns.kolhar.net",
+				Type:    DIRECT,
+				IP:      net.ParseIP("192.168.0.15"),
+				Tags:    []string{"local", "kolhar"},
+				Source:  "local",
+			},
+			&Record{
+				Pattern: "*kolhar.net",
+				Type:    WILDCARD,
+				IP:      net.ParseIP("192.168.0.3"),
+				Tags:    []string{"local", "kolhar"},
+				Source:  "local",
+			})
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -133,12 +140,13 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 			log.Fatal(err)
 		}
 
-		block, err := BlockResolver(ctx, pub, &Record{
-			Pattern: "*google.com",
-			Type:    WILDCARD,
-			Tags:    []string{"privacy", "advertising"},
-			Source:  "local",
-		})
+		block, err := BlockResolver(ctx, pub)
+		//		&Record{
+		//		Pattern: "*facebook.com",
+		//		Type:    WILDCARD,
+		//		Tags:    []string{"privacy", "advertising"},
+		//		Source:  "local",
+		//	})
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -220,8 +228,8 @@ func (i *Initializer[T, U]) Scale(
 	f stream.InterceptFunc[T, U],
 ) <-chan U {
 	s := stream.Scaler[T, U]{
-		Wait: time.Nanosecond,
-		Life: time.Millisecond,
+		Wait: time.Millisecond,
+		Life: time.Millisecond * 100,
 		Fn:   f,
 	}
 

@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/miekg/dns"
@@ -144,7 +143,7 @@ func Up(
 		}
 
 		// Initialize the upstream connection
-		u.conn = u.init(ctx)
+		//u.conn = u.init(ctx)
 
 		upstreams = append(upstreams, u)
 	}
@@ -172,8 +171,8 @@ type Upstream struct {
 	client *dns.Client
 
 	// upstream connection
-	conn <-chan *dns.Conn
-	new  chan *dns.Conn
+	//conn <-chan *dns.Conn
+	//new  chan *dns.Conn
 
 	// Time before reconnecting the client
 	reconnect time.Duration
@@ -186,13 +185,13 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 	out := make(chan *dns.Conn)
 
 	go func() {
-		var ticker <-chan time.Time
-		if u.proto != UDP {
-			t := time.NewTicker(u.reconnect)
-			defer t.Stop()
+		//var ticker <-chan time.Time
+		//if u.proto != UDP {
+		//	t := time.NewTicker(u.reconnect)
+		//	defer t.Stop()
 
-			ticker = t.C
-		}
+		//	ticker = t.C
+		//}
 		defer close(out)
 
 		// Initial connection
@@ -213,9 +212,9 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 			select {
 			case <-ctx.Done():
 				return
-			case <-ticker:
-				u.reconn(ctx, conn)
-			case u.new <- u.reconn(ctx, conn):
+			//case <-ticker: // THIS IS NOT CORRECT, blocking requests after reconnect
+			//	u.reconn(ctx, conn)
+			//case u.new <- u.reconn(ctx, conn): // THIS IS NOT CORRECT
 			case out <- conn:
 			}
 		}
@@ -279,27 +278,29 @@ func (u *Upstream) Intercept(
 	select {
 	case <-ctx.Done():
 		return
-	case conn, ok := <-u.conn:
-		if !ok {
-			return
-		}
+	//case conn, ok := <-u.conn:
+	//if !ok {
+	//	return
+	//}
+	default:
 
 		// Send the Request
-		resp, _, err := u.client.ExchangeWithConn(req.r, conn)
+		// TODO: Log RTT
+		resp, _, err := u.client.ExchangeContext(ctx, req.r, u.addr())
 
 		// If the connection was broken, reconnect and retry
-		if errors.Is(err, syscall.EPIPE) {
-			select {
-			case <-ctx.Done():
-				return
-			case conn, ok := <-u.new:
-				if !ok {
-					return
-				}
+		//if errors.Is(err, syscall.EPIPE) {
+		//	select {
+		//	case <-ctx.Done():
+		//		return
+		//	case conn, ok := <-u.new:
+		//		if !ok {
+		//			return
+		//		}
 
-				resp, _, err = u.client.ExchangeWithConn(req.r, conn)
-			}
-		}
+		//		resp, _, err = u.client.ExchangeWithConn(req.r, conn)
+		//	}
+		//}
 
 		if err != nil {
 			u.pub.ErrorFunc(ctx, func() error {
