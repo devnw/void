@@ -87,35 +87,31 @@ type interceptor struct {
 }
 
 func (i *interceptor) WriteMsg(res *dns.Msg) (err error) {
-	if len(res.Answer) == 0 {
-		return i.next(res)
-	}
 
-	// Store the response using the information from the
-	// first answer only
-	a := res.Answer[0]
-	if a.Header() != nil {
-		i.once.Do(func() {
-			ttl := time.Second * time.Duration(a.Header().Ttl)
+	i.once.Do(func() {
+		ttl := time.Second * DEFAULTTTL
 
-			// Set the cache value with record specific TTL
-			err = i.cache.SetTTL(i.ctx, i.req.Key(), res, ttl)
-			if err != nil {
-				return
-			}
-
-			i.pub.EventFunc(i.ctx, func() event.Event {
-				return &CacheEvent{
-					Method: WRITE,
-					Record: i.req.String(),
-					TTL:    ttl,
-				}
-			})
-		})
-
-		if err != nil {
-			return err
+		if len(res.Answer) > 0 && res.Answer[0].Header() != nil {
+			ttl = time.Second * time.Duration(res.Answer[0].Header().Ttl)
 		}
+
+		// Set the cache value with record specific TTL
+		err = i.cache.SetTTL(i.ctx, i.req.Key(), res, ttl)
+		if err != nil {
+			return
+		}
+
+		i.pub.EventFunc(i.ctx, func() event.Event {
+			return &CacheEvent{
+				Method: WRITE,
+				Record: i.req.String(),
+				TTL:    ttl,
+			}
+		})
+	})
+
+	if err != nil {
+		return err
 	}
 
 	return i.next(res)
