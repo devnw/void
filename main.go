@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strconv"
 	"time"
@@ -116,7 +117,14 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 			ttl.NewCache[string, *dns.Msg](ctx, time.Minute, false),
 		}
 
-		local, err := LocalResolver(ctx, pub)
+		local, err := LocalResolver(ctx, pub, &Record{
+			Pattern: "*kolhar.net",
+			Type:    Type(dns.TypeA),
+			Eval:    WILDCARD,
+			IP:      net.ParseIP("192.168.0.3"),
+			Tags:    []string{"local", "kolhar"},
+			Source:  "local",
+		})
 		if err != nil {
 			log.Fatal(err)
 		}

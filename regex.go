@@ -48,6 +48,8 @@ func Match(
 			}
 		}
 
+		fmt.Printf("%s: %s\n", record.Pattern, exp.String())
+
 		in := make(chan matcher)
 
 		// Append the pattern to the list of patterns
@@ -92,6 +94,8 @@ func (r *Regex) Match(
 
 	go func() {
 		defer close(out)
+
+		fmt.Printf("%s: %s\n", data, r.patterns)
 
 		// Collapse request immediately when there are no patterns
 		if r.patterns == 0 {

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 	"go.devnw.com/event"
 	"go.devnw.com/ttl"
@@ -58,7 +59,7 @@ func (c *Cache) Intercept(
 		return req, true
 	}
 
-	err := req.Answer(r)
+	err := req.Answer(r.SetReply(req.r))
 	if err != nil {
 		c.pub.ErrorFunc(ctx, func() error {
 			return Error{
@@ -89,6 +90,12 @@ type interceptor struct {
 func (i *interceptor) WriteMsg(res *dns.Msg) (err error) {
 	if len(res.Answer) == 0 {
 		return i.next(res)
+	}
+
+	spew.Config.DisableMethods = true
+	for _, r := range res.Answer {
+		fmt.Println(r)
+		spew.Dump(r)
 	}
 
 	// Store the response using the information from the
