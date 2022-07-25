@@ -150,22 +150,29 @@ func Test_Wildcard(t *testing.T) {
 	}{
 		"valid": {
 			wildcard: "*domain.tld",
-			expected: `(\.|^)domain\.tld$`,
+			expected: `domain\.tld$`,
 			input:    "test.domain.tld",
 			match:    true,
-			err:      nil,
+		},
+		"valid_sub": {
+			wildcard: "*.domain.tld",
+			expected: `\.domain\.tld$`,
+			input:    "test.domain.tld",
+			match:    true,
+		},
+		"valid_endstring": {
+			wildcard: "*domain.tld",
+			expected: `domain\.tld$`,
+			input:    "anytextheredomain.tld",
+			match:    true,
 		},
 		"invalid": {
 			wildcard: "d*domain.tld",
 			err:      ErrWildcard,
 		},
 		"invalid_domain": {
-			wildcard: "*.tld",
+			wildcard: "*",
 			err:      ErrDomain,
-		},
-		"invalid_tld": {
-			wildcard: "*domain.",
-			err:      ErrTLD,
 		},
 	}
 
@@ -179,6 +186,8 @@ func Test_Wildcard(t *testing.T) {
 			if err != nil {
 				return
 			}
+
+			t.Logf("Test Regex: %s", r)
 
 			if r.String() != test.expected {
 				t.Errorf("expected [%v], got [%v]", test.expected, r.String())

@@ -94,9 +94,6 @@ func (r *Regex) Match(
 
 	go func() {
 		defer close(out)
-
-		fmt.Printf("%s: %s\n", data, r.patterns)
-
 		// Collapse request immediately when there are no patterns
 		if r.patterns == 0 {
 			return
@@ -194,10 +191,7 @@ func (e *expr) match(
 	return struct{}{}, false
 }
 
-const wrapper = `(\.|^)%s\.%s$`
-
 var ErrWildcard = fmt.Errorf("invalid wildcard")
-var ErrTLD = fmt.Errorf("invalid TLD")
 var ErrDomain = fmt.Errorf("invalid domain")
 
 func Wildcard(entry string) (*regexp.Regexp, error) {
@@ -206,16 +200,10 @@ func Wildcard(entry string) (*regexp.Regexp, error) {
 		return nil, ErrWildcard
 	}
 
-	tldi := strings.LastIndex(entry, ".")
-	if tldi == -1 || tldi == len(entry)-1 {
-		return nil, ErrTLD
-	}
-
-	body := entry[wild+1 : tldi]
-	tld := entry[tldi+1:]
-	if len(body) == 0 {
+	entry = regexp.QuoteMeta(entry[wild+1:])
+	if len(entry) == 0 {
 		return nil, ErrDomain
 	}
 
-	return regexp.Compile(fmt.Sprintf(wrapper, body, tld))
+	return regexp.Compile(fmt.Sprintf("%s$", entry))
 }

@@ -50,11 +50,8 @@ func (l *Local) Intercept(
 	req *Request,
 ) (*Request, bool) {
 	fmt.Println("LocalResolver.Intercept")
-	// Only support A, AAAA, and CNAME records for local
-	// records for now
 	if req.r.Question[0].Qtype != dns.TypeA &&
-		req.r.Question[0].Qtype != dns.TypeAAAA && // This is ipv6
-		req.r.Question[0].Qtype != dns.TypeCNAME {
+		req.r.Question[0].Qtype != dns.TypeAAAA {
 		return req, true
 	}
 
