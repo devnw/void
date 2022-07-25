@@ -143,8 +143,6 @@ func Up(
 			},
 		}
 
-		fmt.Printf("[%s] creating client\n", u.String())
-
 		// Initialize the upstream connection
 		u.conn = u.init(ctx)
 
@@ -217,9 +215,7 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 				return
 			case <-ticker:
 				u.reconn(ctx, conn)
-				fmt.Printf("[%s] reconnecting\n", u.String())
 			case u.new <- u.reconn(ctx, conn):
-				fmt.Printf("[%s] new connection request\n", u.String())
 			case out <- conn:
 			}
 		}
@@ -288,8 +284,6 @@ func (u *Upstream) Intercept(
 			return
 		}
 
-		fmt.Printf("[%s] sending request\n", u.String())
-
 		// Send the Request
 		resp, _, err := u.client.ExchangeWithConn(req.r, conn)
 
@@ -303,7 +297,6 @@ func (u *Upstream) Intercept(
 					return
 				}
 
-				fmt.Printf("[%s] reconnected", u.String())
 				resp, _, err = u.client.ExchangeWithConn(req.r, conn)
 			}
 		}

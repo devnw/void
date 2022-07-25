@@ -43,7 +43,7 @@ func Test_Local_Intercept(t *testing.T) {
 		"match-direct": {
 			records: []*Record{{
 				Pattern: "test.example.tld",
-				Eval:    DIRECT,
+				Type:    DIRECT,
 				IP:      net.ParseIP("192.168.0.1"),
 			}},
 			request: &Request{
@@ -65,7 +65,7 @@ func Test_Local_Intercept(t *testing.T) {
 		"nomatch-direct": {
 			records: []*Record{{
 				Pattern: "test.example.tld",
-				Eval:    DIRECT,
+				Type:    DIRECT,
 				IP:      net.ParseIP("192.168.0.1"),
 			}},
 			request: &Request{

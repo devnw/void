@@ -82,7 +82,6 @@ func ReadHosts(ctx context.Context, path string) Hosts {
 
 			hosts = append(hosts, parseFile(ctx, body)...)
 			count++
-			fmt.Printf("Processed %d files\n", count)
 		}
 	}
 }

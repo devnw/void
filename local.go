@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/miekg/dns"
 	"go.devnw.com/event"
@@ -49,7 +48,6 @@ func (l *Local) Intercept(
 	ctx context.Context,
 	req *Request,
 ) (*Request, bool) {
-	fmt.Println("LocalResolver.Intercept")
 	if req.r.Question[0].Qtype != dns.TypeA &&
 		req.r.Question[0].Qtype != dns.TypeAAAA {
 		return req, true

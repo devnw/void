@@ -48,8 +48,6 @@ func Match(
 			}
 		}
 
-		fmt.Printf("%s: %s\n", record.Pattern, exp.String())
-
 		in := make(chan matcher)
 
 		// Append the pattern to the list of patterns

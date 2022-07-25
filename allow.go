@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"go.devnw.com/event"
 )
@@ -42,7 +41,6 @@ func (a *Allow) Intercept(
 	ctx context.Context,
 	req *Request,
 ) (*Request, bool) {
-	fmt.Println("AllowResolver.Intercept")
 	// Check for match
 	record := a.Match(ctx, req.Record())
 	if record == nil {

@@ -35,48 +35,48 @@ func Test_Match(t *testing.T) {
 		"match-ipv4": {
 			regex: &Record{
 				Pattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$",
-				Eval:    REGEX,
+				Type:    REGEX,
 			},
 			input:   "1.1.1.1",
 			matched: true,
 		},
 		"match-ipv4_": {
-			regex:   &Record{Pattern: ipv4Reg, Eval: REGEX},
+			regex:   &Record{Pattern: ipv4Reg, Type: REGEX},
 			input:   "1.1.1.1",
 			matched: true,
 		},
 		"match-ipv4_bad": {
-			regex:   &Record{Pattern: ipv4Reg, Eval: REGEX},
+			regex:   &Record{Pattern: ipv4Reg, Type: REGEX},
 			input:   "asdf1.1.1",
 			matched: false,
 		},
 		"wildcard_domain": {
-			regex:   &Record{Pattern: `(\.|^)domain\.tld$`, Eval: REGEX},
+			regex:   &Record{Pattern: `(\.|^)domain\.tld$`, Type: REGEX},
 			input:   "domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_sub": {
-			regex:   &Record{Pattern: `(\.|^)domain\.tld$`, Eval: REGEX},
+			regex:   &Record{Pattern: `(\.|^)domain\.tld$`, Type: REGEX},
 			input:   "test.domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_multi_sub": {
-			regex:   &Record{Pattern: `(\.|^)domain\.tld$`, Eval: REGEX},
+			regex:   &Record{Pattern: `(\.|^)domain\.tld$`, Type: REGEX},
 			input:   "test2.test.domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_mismatch": {
-			regex:   &Record{Pattern: `(\.|^)domain\.tld$`, Eval: REGEX},
+			regex:   &Record{Pattern: `(\.|^)domain\.tld$`, Type: REGEX},
 			input:   "void.tld",
 			matched: false,
 		},
 		"wildcard_domain_from_Wild": {
-			regex:   &Record{Pattern: `*domain.tld`, Eval: WILDCARD},
+			regex:   &Record{Pattern: `*domain.tld`, Type: WILDCARD},
 			input:   "domain.tld",
 			matched: true,
 		},
 		"wildcard_domain_from_Wild_subdomain": {
-			regex:   &Record{Pattern: `*domain.tld`, Eval: WILDCARD},
+			regex:   &Record{Pattern: `*domain.tld`, Type: WILDCARD},
 			input:   "test.domain.tld",
 			matched: true,
 		},
@@ -164,6 +164,12 @@ func Test_Wildcard(t *testing.T) {
 			wildcard: "*domain.tld",
 			expected: `domain\.tld$`,
 			input:    "anytextheredomain.tld",
+			match:    true,
+		},
+		"tld_only": {
+			wildcard: "*.tld",
+			expected: `\.tld$`,
+			input:    "test.tld",
 			match:    true,
 		},
 		"invalid": {
