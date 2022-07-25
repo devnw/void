@@ -78,7 +78,6 @@ func (r *Request) Answer(msg *dns.Msg) error {
 	default:
 		r.cancel()
 
-		//msg.SetReply(r.r)
 		return r.w.WriteMsg(msg)
 	}
 }

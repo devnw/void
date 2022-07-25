@@ -33,7 +33,7 @@ func NewMatcher(
 	regex := []*Record{}
 	directs := map[string]*Record{}
 	for _, r := range records {
-		switch r.Eval {
+		switch r.Type {
 		case REGEX, WILDCARD:
 			regex = append(regex, r)
 		case DIRECT:
@@ -103,7 +103,6 @@ func (m *m) Match(ctx context.Context, domain string) *Record {
 type Record struct {
 	Pattern  string
 	Type     Type
-	Eval     EvalType
 	IP       net.IP
 	Category string
 	Tags     []string
@@ -127,7 +126,6 @@ func (r *Record) MarshalJSON() ([]byte, error) {
 	}{
 		Domain:   r.Pattern,
 		Type:     r.Type.String(),
-		Eval:     r.Eval.String(),
 		IP:       r.IP.String(),
 		Category: r.Category,
 		Tags:     r.Tags,
@@ -156,8 +154,7 @@ func (r *Record) UnmarshalJSON(data []byte) error {
 	}
 
 	r.Pattern = d.Domain
-	r.Type = Type(StringToType[d.Type])
-	r.Eval = EvalStringToType(d.Eval)
+	r.Type = EvalStringToType(d.Eval)
 	r.IP = net.ParseIP(d.IP)
 	r.Category = d.Category
 	r.Tags = d.Tags

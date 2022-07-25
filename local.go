@@ -59,15 +59,11 @@ func (l *Local) Intercept(
 	if record == nil || record.IP == nil {
 		return req, true
 	}
-	//rr, err := dns.NewRR(fmt.Sprintf("%s %v IN A %s", req.r.Question[0].Name, DEFAULTTTL, record.IP.String()))
-	//if err != nil {
-	//	return req, true
-	//}
 
 	req.r.Answer = append(req.r.Answer, &dns.A{
 		Hdr: dns.RR_Header{
 			Name:     req.r.Question[0].Name,
-			Rrtype:   uint16(record.Type),
+			Rrtype:   dns.TypeA,
 			Class:    dns.ClassINET,
 			Ttl:      DEFAULTTTL,
 			Rdlength: uint16(len(record.IP)),

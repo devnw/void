@@ -119,8 +119,7 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 
 		local, err := LocalResolver(ctx, pub, &Record{
 			Pattern: "*kolhar.net",
-			Type:    Type(dns.TypeA),
-			Eval:    WILDCARD,
+			Type:    WILDCARD,
 			IP:      net.ParseIP("192.168.0.3"),
 			Tags:    []string{"local", "kolhar"},
 			Source:  "local",
@@ -136,8 +135,7 @@ func exec(ctx context.Context, port int) func(cmd *cobra.Command, _ []string) {
 
 		block, err := BlockResolver(ctx, pub, &Record{
 			Pattern: "*google.com",
-			Type:    Type(dns.TypeA),
-			Eval:    WILDCARD,
+			Type:    WILDCARD,
 			Tags:    []string{"privacy", "advertising"},
 			Source:  "local",
 		})

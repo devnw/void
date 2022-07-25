@@ -56,7 +56,7 @@ func (h *Host) Record(src, cat string, tags ...string) *Record {
 		Pattern:  h.Domain,
 		IP:       h.IP,
 		Comment:  h.Comment,
-		Eval:     DIRECT,
+		Type:     DIRECT,
 		Source:   src,
 		Category: cat,
 		Tags:     tags,

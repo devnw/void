@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/miekg/dns"
@@ -92,95 +90,3 @@ func (m *Metric) String() string {
 func (m *Metric) Event() string {
 	return m.String()
 }
-
-// TODO: Add regex handler
-
-// TODO: Convert wildcard to regex
-// (\.|^)domain\.tld$
-
-type void struct {
-	ctx context.Context
-
-	allow   map[string]*Record
-	allowMu sync.RWMutex
-
-	deny   map[string]*Record
-	denyMu sync.RWMutex
-}
-
-func (v *void) Handler(next HandleFunc) HandleFunc {
-	d := &Record{
-		Pattern:  "www.google.com",
-		Eval:     DIRECT,
-		Category: "advertising",
-		Tags:     []string{"advertising", "google"},
-	}
-
-	a := &Record{
-		Pattern:  "google.com",
-		Eval:     DIRECT,
-		Category: "advertising",
-		Tags:     []string{"advertising", "google"},
-	}
-
-	v.denyMu.Lock()
-	v.deny[d.Pattern] = d
-	v.denyMu.Unlock()
-
-	v.allowMu.Lock()
-	v.allow[a.Pattern] = a
-	v.allowMu.Unlock()
-
-	return func(w dns.ResponseWriter, req *dns.Msg) {
-		record := strings.TrimSuffix(req.Question[0].Name, ".")
-
-		// Found in allow list, continue with next handler
-		_, ok := v.allow[record]
-		if ok {
-			next(w, req)
-			return
-		}
-
-		_, ok = v.deny[record]
-		if !ok {
-			next(w, req)
-			return
-		}
-
-		// Send to the void
-		res := &dns.Msg{}
-		res.SetRcode(req, dns.RcodeNameError)
-
-		err := w.WriteMsg(res)
-		if err != nil {
-			// TODO:
-			fmt.Printf("Error: %s\n", err)
-		}
-	}
-}
-
-//type cached struct {
-//	ctx   context.Context
-//	cache *ttl.Cache[string, *dns.Msg]
-//}
-//
-//func (c *cached) Handler(next HandleFunc) HandleFunc {
-//	return func(w dns.ResponseWriter, req *dns.Msg) {
-//		record := strings.TrimSuffix(req.Question[0].Name, ".")
-//
-//		fmt.Printf("%s\n", record)
-//		r, ok := c.cache.Get(c.ctx, record)
-//		if !ok || r == nil {
-//			next(&interceptor{w, c.ctx, c.cache}, req)
-//			return
-//		}
-//
-//		resp := r.SetReply(req)
-//
-//		err := w.WriteMsg(resp)
-//		if err != nil {
-//			// TODO: Handle error
-//			fmt.Printf("Error: %s\n", err)
-//		}
-//	}
-//}

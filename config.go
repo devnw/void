@@ -13,8 +13,8 @@ type Config struct {
 	Deny  gen.Map[string, Record] `json:"deny_records"`
 }
 
-// EvalType indicates the type of a record to ensure proper analysis
-type EvalType uint8
+// Type indicates the type of a record to ensure proper analysis
+type Type uint8
 
 const (
 	// DIRECT indicates a direct DNS record, compared 1 to 1
@@ -30,7 +30,7 @@ const (
 	REGEX
 )
 
-var evalTypeStrings = gen.FMap[EvalType, string]{
+var evalTypeStrings = gen.FMap[Type, string]{
 	DIRECT:   "direct",
 	WILDCARD: "wildcard",
 	REGEX:    "regex",
@@ -40,10 +40,10 @@ var evalTypeStringsR = evalTypeStrings.Flip()
 
 // EvalStringToType returns the type of a record based on the string
 // representation of the type
-func EvalStringToType(str string) EvalType {
+func EvalStringToType(str string) Type {
 	return evalTypeStringsR[str]
 }
 
-func (t EvalType) String() string {
+func (t Type) String() string {
 	return evalTypeStrings[t]
 }

@@ -24,11 +24,11 @@ func Match(
 		var exp *regexp.Regexp
 		var err error
 
-		if record.Eval != REGEX && record.Eval != WILDCARD {
+		if record.Type != REGEX && record.Type != WILDCARD {
 			continue
 		}
 
-		if record.Eval == WILDCARD {
+		if record.Type == WILDCARD {
 			exp, err = Wildcard(record.Pattern)
 			if err != nil {
 				pub.ErrorFunc(ctx, func() error {
