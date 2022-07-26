@@ -12,6 +12,7 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"go.atomizer.io/stream"
 	"go.devnw.com/alog"
 	"go.devnw.com/event"
@@ -24,31 +25,29 @@ const DEFAULTTTL = 3600
 
 var version string
 
+func init() {
+	viper.SetEnvPrefix("VOID")
+}
+
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	var (
-		port     uint16
-		upstream []string
-	)
 
 	root := &cobra.Command{
 		Use:     "void [flags]",
 		Short:   "void is a simple cluster based dns provider/sink",
 		Version: version,
-		Run:     exec(ctx, &port, &upstream),
+		Run:     exec(ctx),
 	}
 
-	root.PersistentFlags().Uint16VarP(
-		&port,
+	root.PersistentFlags().Uint16P(
 		"port",
 		"p",
 		53,
 		"DNS listening port",
 	)
 
-	upstream = *root.PersistentFlags().StringSliceP(
+	root.PersistentFlags().StringSliceP(
 		"upstream",
 		"u",
 		[]string{
@@ -58,6 +57,10 @@ func main() {
 		"Upstream DNS Servers",
 	)
 
+	viper.BindPFlag("port", root.PersistentFlags().Lookup("port"))
+	viper.BindPFlag("upstream", root.PersistentFlags().Lookup("upstream"))
+
+	viper.AutomaticEnv()
 	err := root.ExecuteContext(ctx)
 	if err != nil {
 		fmt.Println(err)
@@ -66,16 +69,19 @@ func main() {
 	}
 }
 
-func exec(ctx context.Context, port *uint16, upstreams *[]string) func(cmd *cobra.Command, _ []string) {
+func exec(ctx context.Context) func(cmd *cobra.Command, _ []string) {
 	return func(cmd *cobra.Command, _ []string) {
 		pub := event.NewPublisher(ctx)
+
+		port := uint16(viper.GetUint("port"))
+		upstreams := viper.GetStringSlice("upstream")
 
 		i := &Initializer[*Request, *Request]{pub}
 		alog.Printc(ctx, pub.ReadEvents(0).Interface())
 		alog.Errorc(ctx, pub.ReadErrors(0).Interface())
 
 		server := &dns.Server{
-			Addr: ":" + strconv.Itoa(int(*port)),
+			Addr: ":" + strconv.Itoa(int(port)),
 			Net:  "udp",
 		}
 
@@ -89,7 +95,7 @@ func exec(ctx context.Context, port *uint16, upstreams *[]string) func(cmd *cobr
 		upstream, err := Up(
 			ctx,
 			pub,
-			*upstreams...,
+			upstreams...,
 		)
 		if err != nil {
 			log.Fatal(err)
@@ -183,8 +189,8 @@ func exec(ctx context.Context, port *uint16, upstreams *[]string) func(cmd *cobr
 		fmt.Fprintf(
 			os.Stderr,
 			"void listening on port %v; upstream [%s]\n",
-			*port,
-			strings.Join(*upstreams, ", "),
+			port,
+			strings.Join(upstreams, ", "),
 		)
 		err = server.ListenAndServe()
 		if err != nil {
