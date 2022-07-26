@@ -37,8 +37,15 @@ func init() {
 		"Upstream DNS Servers",
 	)
 
+	root.PersistentFlags().StringSlice(
+		"peers",
+		[]string{},
+		"DNS cluster peers (example: tcp://192.168.0.10, tcp-tls://, quic://)",
+	)
+
 	viper.BindPFlag("port", root.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("upstream", root.PersistentFlags().Lookup("upstream"))
+	viper.BindPFlag("peers", root.PersistentFlags().Lookup("peers"))
 
 	viper.AutomaticEnv()
 	viper.SetConfigName("void")
