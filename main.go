@@ -23,8 +23,6 @@ import (
 // provide a TTL, are blocked, or are local records.
 const DEFAULTTTL = 3600
 
-var version string
-
 func init() {
 	viper.SetEnvPrefix("VOID")
 }
@@ -33,34 +31,6 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	root := &cobra.Command{
-		Use:     "void [flags]",
-		Short:   "void is a simple cluster based dns provider/sink",
-		Version: version,
-		Run:     exec(ctx),
-	}
-
-	root.PersistentFlags().Uint16P(
-		"port",
-		"p",
-		53,
-		"DNS listening port",
-	)
-
-	root.PersistentFlags().StringSliceP(
-		"upstream",
-		"u",
-		[]string{
-			"tcp-tls://1.1.1.1:853",
-			"tcp-tls://1.0.0.1:853",
-		},
-		"Upstream DNS Servers",
-	)
-
-	viper.BindPFlag("port", root.PersistentFlags().Lookup("port"))
-	viper.BindPFlag("upstream", root.PersistentFlags().Lookup("upstream"))
-
-	viper.AutomaticEnv()
 	err := root.ExecuteContext(ctx)
 	if err != nil {
 		fmt.Println(err)
@@ -69,133 +39,133 @@ func main() {
 	}
 }
 
-func exec(ctx context.Context) func(cmd *cobra.Command, _ []string) {
-	return func(cmd *cobra.Command, _ []string) {
-		pub := event.NewPublisher(ctx)
+func exec(cmd *cobra.Command, _ []string) {
+	ctx := cmd.Context()
 
-		port := uint16(viper.GetUint("port"))
-		upstreams := viper.GetStringSlice("upstream")
+	pub := event.NewPublisher(ctx)
 
-		i := &Initializer[*Request, *Request]{pub}
-		alog.Printc(ctx, pub.ReadEvents(0).Interface())
-		alog.Errorc(ctx, pub.ReadErrors(0).Interface())
+	port := uint16(viper.GetUint("port"))
+	upstreams := viper.GetStringSlice("upstream")
 
-		server := &dns.Server{
-			Addr: ":" + strconv.Itoa(int(port)),
-			Net:  "udp",
-		}
+	i := &Initializer[*Request, *Request]{pub}
+	alog.Printc(ctx, pub.ReadEvents(0).Interface())
+	alog.Errorc(ctx, pub.ReadErrors(0).Interface())
 
-		//	client := &dns.Client{}
+	server := &dns.Server{
+		Addr: ":" + strconv.Itoa(int(port)),
+		Net:  "udp",
+	}
 
-		handler, requests := Convert(ctx, pub, true)
+	//	client := &dns.Client{}
 
-		// Register the handler into the dns server
-		dns.HandleFunc(".", handler)
+	handler, requests := Convert(ctx, pub, true)
 
-		upstream, err := Up(
+	// Register the handler into the dns server
+	dns.HandleFunc(".", handler)
+
+	upstream, err := Up(
+		ctx,
+		pub,
+		upstreams...,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	up := make([]chan<- *Request, 0, len(upstream))
+	for _, u := range upstream {
+		toUp := make(chan *Request)
+		i.Scale(
 			ctx,
-			pub,
-			upstreams...,
+			toUp,
+			u.Intercept,
 		)
-		if err != nil {
-			log.Fatal(err)
-		}
+		up = append(up, toUp)
+	}
 
-		up := make([]chan<- *Request, 0, len(upstream))
-		for _, u := range upstream {
-			toUp := make(chan *Request)
-			i.Scale(
-				ctx,
-				toUp,
-				u.Intercept,
-			)
-			up = append(up, toUp)
-		}
+	upStreamFan := make(chan *Request)
+	go stream.FanOut(ctx, upStreamFan, up...)
 
-		upStreamFan := make(chan *Request)
-		go stream.FanOut(ctx, upStreamFan, up...)
+	cache := &Cache{
+		ctx,
+		pub,
+		ttl.NewCache[string, *dns.Msg](ctx, time.Minute, false),
+	}
 
-		cache := &Cache{
+	local, err := LocalResolver(ctx, pub,
+		&Record{
+			Pattern: "dns.kolhar.net",
+			Type:    DIRECT,
+			IP:      net.ParseIP("192.168.0.15"),
+			Tags:    []string{"local", "kolhar"},
+			Source:  "local",
+		},
+		&Record{
+			Pattern: "*kolhar.net",
+			Type:    WILDCARD,
+			IP:      net.ParseIP("192.168.0.3"),
+			Tags:    []string{"local", "kolhar"},
+			Source:  "local",
+		})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	allow, err := AllowResolver(ctx, pub, upStreamFan,
+		&Record{
+			Pattern: "google.com",
+			Type:    DIRECT,
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	block, err := BlockResolver(ctx, pub,
+		&Record{
+			Pattern: "*facebook.com",
+			Type:    WILDCARD,
+			Tags:    []string{"privacy", "advertising"},
+			Source:  "local",
+		})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go stream.Pipe( // Upstream FanOut
+		ctx,
+		i.Scale( // Block
 			ctx,
-			pub,
-			ttl.NewCache[string, *dns.Msg](ctx, time.Minute, false),
-		}
-
-		local, err := LocalResolver(ctx, pub,
-			&Record{
-				Pattern: "dns.kolhar.net",
-				Type:    DIRECT,
-				IP:      net.ParseIP("192.168.0.15"),
-				Tags:    []string{"local", "kolhar"},
-				Source:  "local",
-			},
-			&Record{
-				Pattern: "*kolhar.net",
-				Type:    WILDCARD,
-				IP:      net.ParseIP("192.168.0.3"),
-				Tags:    []string{"local", "kolhar"},
-				Source:  "local",
-			})
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		allow, err := AllowResolver(ctx, pub, upStreamFan,
-			&Record{
-				Pattern: "google.com",
-				Type:    DIRECT,
-			},
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		block, err := BlockResolver(ctx, pub,
-			&Record{
-				Pattern: "*facebook.com",
-				Type:    WILDCARD,
-				Tags:    []string{"privacy", "advertising"},
-				Source:  "local",
-			})
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		go stream.Pipe( // Upstream FanOut
-			ctx,
-			i.Scale( // Block
+			i.Scale( // Allow
 				ctx,
-				i.Scale( // Allow
+				i.Scale( // Local
 					ctx,
-					i.Scale( // Local
+					i.Scale( // Cache
 						ctx,
-						i.Scale( // Cache
-							ctx,
-							requests,
-							cache.Intercept,
-						),
-						local.Intercept,
+						requests,
+						cache.Intercept,
 					),
-					allow.Intercept,
+					local.Intercept,
 				),
-				block.Intercept,
+				allow.Intercept,
 			),
-			upStreamFan,
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
+			block.Intercept,
+		),
+		upStreamFan,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-		fmt.Fprintf(
-			os.Stderr,
-			"void listening on port %v; upstream [%s]\n",
-			port,
-			strings.Join(upstreams, ", "),
-		)
-		err = server.ListenAndServe()
-		if err != nil {
-			log.Fatal(err)
-		}
+	fmt.Fprintf(
+		os.Stderr,
+		"void listening on port %v; upstream [%s]\n",
+		port,
+		strings.Join(upstreams, ", "),
+	)
+	err = server.ListenAndServe()
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 

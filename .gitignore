@@ -1,4 +1,8 @@
 void
+void.yaml
+void.json
+void.toml
+
 # Removing Vendor
 vendor/
 testdata/remote
