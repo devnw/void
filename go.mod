@@ -3,8 +3,10 @@ module go.avoid.dev/void
 go 1.18
 
 require (
+	github.com/davecgh/go-spew v1.1.1
 	github.com/miekg/dns v1.1.50
 	github.com/spf13/cobra v1.5.0
+	github.com/spf13/viper v1.12.0
 	go.atomizer.io/stream v1.0.4
 	go.devnw.com/alog v1.1.1
 	go.devnw.com/event v1.0.2
@@ -24,7 +26,6 @@ require (
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.12.0 // indirect
 	github.com/subosito/gotenv v1.3.0 // indirect
 	go.devnw.com/validator v1.0.8 // indirect
 	golang.org/x/mod v0.4.2 // indirect

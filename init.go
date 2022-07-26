@@ -32,6 +32,17 @@ func init() {
 	)
 	viper.BindPFlag("verbose", root.PersistentFlags().Lookup("verbose"))
 
+	root.PersistentFlags().String(
+		"config",
+		"",
+		"config file location",
+	)
+
+	viper.BindPFlag("config", root.PersistentFlags().Lookup("config"))
+	if viper.GetString("config") != "" {
+		viper.SetConfigFile(viper.GetString("config"))
+	}
+
 	root.PersistentFlags().Uint16P(
 		"port",
 		"p",
@@ -55,9 +66,9 @@ func init() {
 		"DNS cluster peers (example: tcp://192.168.0.10, tcp-tls://, quic://)",
 	)
 
-	viper.BindPFlag("dns.port", root.PersistentFlags().Lookup("port"))
-	viper.BindPFlag("dns.upstream", root.PersistentFlags().Lookup("upstream"))
-	viper.BindPFlag("dns.peers", root.PersistentFlags().Lookup("peers"))
+	viper.BindPFlag("DNS.Port", root.PersistentFlags().Lookup("port"))
+	viper.BindPFlag("DNS.Upstream", root.PersistentFlags().Lookup("upstream"))
+	viper.BindPFlag("DNS.Peers", root.PersistentFlags().Lookup("peers"))
 
 	viper.AutomaticEnv()
 	viper.SetConfigName("void")

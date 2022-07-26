@@ -6,10 +6,12 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -28,7 +30,7 @@ func init() {
 }
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(context.Background())
 	defer cancel()
 
 	err := root.ExecuteContext(ctx)
@@ -44,8 +46,32 @@ func exec(cmd *cobra.Command, _ []string) {
 
 	pub := event.NewPublisher(ctx)
 
-	port := uint16(viper.GetUint("dns.port"))
-	upstreams := viper.GetStringSlice("dns.upstream")
+	var localSrcs []Source
+	err := viper.UnmarshalKey("dns.local", &localSrcs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	spew.Dump(localSrcs)
+
+	var allowSrcs []Source
+	err = viper.UnmarshalKey("DNS.Allow", &allowSrcs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	spew.Dump(allowSrcs)
+
+	var blockSrcs []Source
+	err = viper.UnmarshalKey("DNS.Block", &blockSrcs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	spew.Dump(blockSrcs)
+
+	port := uint16(viper.GetUint("DNS.Port"))
+	upstreams := viper.GetStringSlice("DNS.Upstream")
 
 	i := &Initializer[*Request, *Request]{pub}
 
