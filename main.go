@@ -44,11 +44,15 @@ func exec(cmd *cobra.Command, _ []string) {
 
 	pub := event.NewPublisher(ctx)
 
-	port := uint16(viper.GetUint("port"))
-	upstreams := viper.GetStringSlice("upstream")
+	port := uint16(viper.GetUint("dns.port"))
+	upstreams := viper.GetStringSlice("dns.upstream")
 
 	i := &Initializer[*Request, *Request]{pub}
-	alog.Printc(ctx, pub.ReadEvents(0).Interface())
+
+	if viper.GetBool("verbose") {
+		alog.Printc(ctx, pub.ReadEvents(0).Interface())
+	}
+
 	alog.Errorc(ctx, pub.ReadErrors(0).Interface())
 
 	server := &dns.Server{

@@ -19,7 +19,19 @@ var (
 	}
 )
 
+// TODO: Make DNS sink a subcommand
+// TODO: Make Proxy a subcommand (future)
+// TODO: Root command should base function on config file
+
 func init() {
+	root.PersistentFlags().BoolP(
+		"verbose",
+		"v",
+		false,
+		"verbose output",
+	)
+	viper.BindPFlag("verbose", root.PersistentFlags().Lookup("verbose"))
+
 	root.PersistentFlags().Uint16P(
 		"port",
 		"p",
@@ -43,9 +55,9 @@ func init() {
 		"DNS cluster peers (example: tcp://192.168.0.10, tcp-tls://, quic://)",
 	)
 
-	viper.BindPFlag("port", root.PersistentFlags().Lookup("port"))
-	viper.BindPFlag("upstream", root.PersistentFlags().Lookup("upstream"))
-	viper.BindPFlag("peers", root.PersistentFlags().Lookup("peers"))
+	viper.BindPFlag("dns.port", root.PersistentFlags().Lookup("port"))
+	viper.BindPFlag("dns.upstream", root.PersistentFlags().Lookup("upstream"))
+	viper.BindPFlag("dns.peers", root.PersistentFlags().Lookup("peers"))
 
 	viper.AutomaticEnv()
 	viper.SetConfigName("void")
