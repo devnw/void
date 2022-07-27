@@ -192,6 +192,15 @@ func exec(cmd *cobra.Command, _ []string) {
 		port,
 		strings.Join(upstreams, ", "),
 	)
+
+	go func() {
+		<-ctx.Done()
+		err := server.Shutdown()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error shutting down server: %v\n", err)
+		}
+	}()
+
 	err = server.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
