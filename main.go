@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -30,7 +31,11 @@ func init() {
 }
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background())
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
 	defer cancel()
 
 	err := root.ExecuteContext(ctx)
@@ -151,13 +156,7 @@ func exec(cmd *cobra.Command, _ []string) {
 		log.Fatal(err)
 	}
 
-	block, err := BlockResolver(ctx, pub,
-		&Record{
-			Pattern: "*facebook.com",
-			Type:    WILDCARD,
-			Tags:    []string{"privacy", "advertising"},
-			Source:  "local",
-		})
+	block, err := BlockResolver(ctx, pub, blockSrcs.Records(ctx)...)
 	if err != nil {
 		log.Fatal(err)
 	}

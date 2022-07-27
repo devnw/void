@@ -20,8 +20,15 @@ type Source struct {
 	Tags     []string
 }
 
-func get(path string) (io.ReadCloser, error) {
-	resp, err := http.DefaultClient.Get(path)
+func get(ctx context.Context, path string) (io.ReadCloser, error) {
+	c := http.DefaultClient
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +103,7 @@ func (s *Source) Remote(ctx context.Context) ([]*Record, error) {
 	if s.Lists {
 		srcs = []*Source{}
 
-		body, err := get(s.Path)
+		body, err := get(ctx, s.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +114,7 @@ func (s *Source) Remote(ctx context.Context) ([]*Record, error) {
 	records := make([]*Record, 0)
 
 	for _, src := range srcs {
-		body, err := get(src.Path)
+		body, err := get(ctx, src.Path)
 		if err != nil {
 			fmt.Println(err)
 			continue
