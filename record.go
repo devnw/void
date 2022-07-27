@@ -112,14 +112,20 @@ type Record struct {
 }
 
 func (r *Record) String() string {
+	comment := ""
+	if r.Comment != "" {
+		comment = fmt.Sprintf(" | comment (%s)", r.Comment)
+	}
+
 	return fmt.Sprintf(
-		"src: %s | cat: %s | %s: %s | ip: %s | tags [%s]",
+		"src: %s | cat: %s | %s: %s | ip: %s | tags [%s]%s",
 		r.Source,
 		r.Category,
 		r.Type,
 		r.Pattern,
 		r.IP,
 		strings.Join(r.Tags, ","),
+		comment,
 	)
 }
 

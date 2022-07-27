@@ -70,7 +70,7 @@ func ReadHosts(ctx context.Context, path string) Hosts {
 	var hosts Hosts
 
 	count := 0
-	bodies := ReadFiles(ctx, ReadDirectory(ctx, path, ".hosts"))
+	bodies := ReadFiles(ctx, ReadDirectory(ctx, path))
 	for {
 		select {
 		case <-ctx.Done():
@@ -105,6 +105,7 @@ func parseFile(ctx context.Context, body io.ReadCloser) Hosts {
 	lines := strings.Split(string(data), "\n")
 
 	for _, line := range lines {
+		fmt.Println(line)
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -125,25 +126,20 @@ func parseFile(ctx context.Context, body io.ReadCloser) Hosts {
 			)
 		}
 
+		ip := net.ParseIP("0.0.0.0")
 		first := strings.Index(line, " ")
-		if first == -1 {
-			continue
+		if first != -1 {
+			ip = net.ParseIP(line[:first])
 		}
 
 		// Pull the IP
-		ip := net.ParseIP(line[:first])
 		if ip == nil {
 			continue
 		}
 
-		tail := len(line) - 1
-		if commentIndex != -1 {
-			tail = commentIndex - 1
-		}
-
 		names := strings.Split(
 			strings.TrimSpace(
-				line[first+1:tail],
+				line[first+1:],
 			), " ")
 		if len(names) < 1 {
 			continue

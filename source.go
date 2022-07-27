@@ -32,3 +32,28 @@ type Source struct {
 	Category string
 	Tags     []string
 }
+
+type Sources []Source
+
+func (s Sources) Records() []*Record {
+	//records := make([]*Record)
+
+	//for _, src := range s {
+	//	switch src.Type {
+	//	case HOSTS:
+	//		return src.Hosts()
+	//	case REG:
+	//		return src.Reg()
+	//	case WILD:
+	//		return src.Wild()
+	//	case VOID:
+	//		return src.Void()
+	//	case DIR:
+	//		return src.Dir()
+	//	case LIST:
+	//		return src.List()
+	//	}
+	//}
+
+	return nil
+}
