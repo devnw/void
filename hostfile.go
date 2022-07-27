@@ -137,10 +137,7 @@ func parseFile(ctx context.Context, body io.ReadCloser) Hosts {
 			continue
 		}
 
-		names := strings.Split(
-			strings.TrimSpace(
-				line[first+1:],
-			), " ")
+		names := strings.Split(strings.TrimSpace(line[first+1:]), " ")
 		if len(names) < 1 {
 			continue
 		}
