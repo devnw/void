@@ -1,33 +1,34 @@
 package main
 
-import "time"
-
-type SourceType string
-
-const (
-	HOSTS SourceType = "hosts"
-	REG   SourceType = "regex"
-	WILD  SourceType = "wild"
-	VOID  SourceType = "void"
-	DIR   SourceType = "direct"
-	LIST  SourceType = "list"
+import (
+	"context"
+	"log"
+	"os"
+	"time"
 )
 
-type LocationType string
+type Format string
 
 const (
-	LOC LocationType = "local"
-	REM LocationType = "remote"
+	HOSTS Format = "hosts"
+	REG   Format = "regex"
+	WILD  Format = "wild"
+	VOID  Format = "void"
+	DIR   Format = "direct"
+	LIST  Format = "list"
 )
 
-type Location struct {
-	Path string
-	Type LocationType
-}
+type LocType string
+
+const (
+	LOC LocType = "local"
+	REM LocType = "remote"
+)
 
 type Source struct {
-	Location Location
-	Type     SourceType
+	Path     string
+	Type     LocType
+	Format   Format
 	Sync     *time.Duration
 	Category string
 	Tags     []string
@@ -35,25 +36,30 @@ type Source struct {
 
 type Sources []Source
 
-func (s Sources) Records() []*Record {
-	//records := make([]*Record)
+func (s Sources) Records(ctx context.Context) []*Record {
+	records := make([]*Record, 0)
 
-	//for _, src := range s {
-	//	switch src.Type {
-	//	case HOSTS:
-	//		return src.Hosts()
-	//	case REG:
-	//		return src.Reg()
-	//	case WILD:
-	//		return src.Wild()
-	//	case VOID:
-	//		return src.Void()
-	//	case DIR:
-	//		return src.Dir()
-	//	case LIST:
-	//		return src.List()
-	//	}
-	//}
+	for _, src := range s {
+		switch src.Type {
+		case LOC:
+			f, err := os.Open(src.Path)
+			if err != nil {
+				log.Fatal(err)
+			}
 
-	return nil
+			defer f.Close()
+			records = append(
+				records,
+				parseFile(ctx, f).Records(
+					src.Path,
+					src.Category,
+					src.Tags...,
+				)...,
+			)
+		case REM:
+		}
+
+	}
+
+	return records
 }

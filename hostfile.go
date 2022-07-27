@@ -15,6 +15,10 @@ import (
 type Hosts []*Host
 
 func (h Hosts) Records(src, cat string, tags ...string) []*Record {
+	if len(h) == 0 {
+		return []*Record{}
+	}
+
 	records := make([]*Record, 0)
 	for _, host := range h {
 		records = append(records, host.Record(src, cat, tags...))

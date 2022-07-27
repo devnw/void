@@ -46,15 +46,15 @@ func exec(cmd *cobra.Command, _ []string) {
 
 	pub := event.NewPublisher(ctx)
 
-	var localSrcs []Source
+	var localSrcs Sources
 	err := viper.UnmarshalKey("dns.local", &localSrcs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	spew.Dump(localSrcs)
+	spew.Dump(localSrcs.Records(ctx))
 
-	var allowSrcs []Source
+	var allowSrcs Sources
 	err = viper.UnmarshalKey("DNS.Allow", &allowSrcs)
 	if err != nil {
 		log.Fatal(err)
@@ -62,7 +62,7 @@ func exec(cmd *cobra.Command, _ []string) {
 
 	spew.Dump(allowSrcs)
 
-	var blockSrcs []Source
+	var blockSrcs Sources
 	err = viper.UnmarshalKey("DNS.Block", &blockSrcs)
 	if err != nil {
 		log.Fatal(err)
