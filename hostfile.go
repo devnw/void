@@ -110,7 +110,6 @@ func Parse(ctx context.Context, tpe Type, body io.ReadCloser) Hosts {
 	lines := strings.Split(string(data), "\n")
 
 	for _, line := range lines {
-		fmt.Println(line)
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue

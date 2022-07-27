@@ -30,8 +30,6 @@ const (
 	REGEX Type = "regex"
 
 	VOID Type = "void"
-
-	LIST Type = "list"
 )
 
 func (t Type) String() string {

@@ -2,25 +2,152 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
+	"strings"
 	"time"
-)
-
-type LocType string
-
-const (
-	LOC LocType = "local"
-	REM LocType = "remote"
 )
 
 type Source struct {
 	Path     string
-	Type     LocType
+	Lists    bool
 	Format   Type
 	Sync     *time.Duration
 	Category string
 	Tags     []string
+}
+
+func get(path string) (io.ReadCloser, error) {
+	resp, err := http.DefaultClient.Get(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode > 299 {
+		return nil, fmt.Errorf("%s: %s", path, resp.Status)
+	}
+
+	return resp.Body, nil
+}
+
+func (s *Source) Records(ctx context.Context) ([]*Record, error) {
+	records := make([]*Record, 0)
+
+	if strings.HasPrefix(s.Path, "http") {
+		r, err := s.Remote(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		records = append(records, r...)
+		return records, nil
+	}
+
+	r, err := s.Local(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	records = append(records, r...)
+	return records, nil
+}
+
+func (s *Source) Local(ctx context.Context) ([]*Record, error) {
+	srcs := []*Source{s}
+
+	if s.Lists {
+		srcs = []*Source{}
+
+		f, err := os.Open(s.Path)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		srcs = readSrcs(s, f)
+	}
+
+	records := make([]*Record, 0)
+	for _, src := range srcs {
+		f, err := os.Open(src.Path)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		defer f.Close()
+		records = append(
+			records,
+			Parse(ctx, src.Format, f).Records(
+				src.Path,
+				src.Category,
+				src.Tags...,
+			)...,
+		)
+	}
+
+	return records, nil
+}
+
+func (s *Source) Remote(ctx context.Context) ([]*Record, error) {
+	srcs := []*Source{s}
+
+	if s.Lists {
+		srcs = []*Source{}
+
+		body, err := get(s.Path)
+		if err != nil {
+			return nil, err
+		}
+
+		srcs = readSrcs(s, body)
+	}
+
+	records := make([]*Record, 0)
+
+	for _, src := range srcs {
+		body, err := get(src.Path)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+
+		records = append(records, Parse(ctx, src.Format, body).Records(
+			src.Path,
+			src.Category,
+			src.Tags...,
+		)...)
+	}
+
+	return records, nil
+}
+
+func readSrcs(parent *Source, body io.ReadCloser) []*Source {
+	srcs := make([]*Source, 0)
+
+	defer body.Close()
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return srcs
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		srcs = append(srcs, &Source{
+			Path:     line,
+			Format:   parent.Format,
+			Sync:     parent.Sync,
+			Category: parent.Category,
+			Tags:     parent.Tags,
+		})
+	}
+
+	return srcs
 }
 
 type Sources []Source
@@ -29,25 +156,13 @@ func (s Sources) Records(ctx context.Context) []*Record {
 	records := make([]*Record, 0)
 
 	for _, src := range s {
-		switch src.Type {
-		case LOC:
-			f, err := os.Open(src.Path)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			defer f.Close()
-			records = append(
-				records,
-				Parse(ctx, src.Format, f).Records(
-					src.Path,
-					src.Category,
-					src.Tags...,
-				)...,
-			)
-		case REM:
+		r, err := src.Records(ctx)
+		if err != nil {
+			log.Println(err)
+			continue
 		}
 
+		records = append(records, r...)
 	}
 
 	return records

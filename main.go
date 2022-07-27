@@ -68,7 +68,7 @@ func exec(cmd *cobra.Command, _ []string) {
 		log.Fatal(err)
 	}
 
-	spew.Dump(blockSrcs)
+	spew.Dump(blockSrcs.Records(ctx))
 
 	port := uint16(viper.GetUint("DNS.Port"))
 	upstreams := viper.GetStringSlice("DNS.Upstream")
