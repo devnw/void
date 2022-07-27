@@ -10,7 +10,7 @@ func Test_HostFile_ReadHosts(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	hosts := ReadHosts(ctx, "testdata/direct/")
+	hosts := ReadHosts(ctx, DIRECT, "testdata/direct/")
 
 	records := hosts.Records("remote", "block", "pihole")
 	for _, host := range records {

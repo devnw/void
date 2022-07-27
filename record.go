@@ -134,7 +134,6 @@ func (r *Record) MarshalJSON() ([]byte, error) {
 	d := struct {
 		Domain   string   `json:"domain"`
 		Type     string   `json:"type,omitempty"`
-		Eval     string   `json:"evalType"`
 		IP       string   `json:"ip,omitempty"`
 		Category string   `json:"category,omitempty"`
 		Tags     []string `json:"tags,omitempty"`
@@ -158,7 +157,6 @@ func (r *Record) UnmarshalJSON(data []byte) error {
 	d := struct {
 		Domain   string   `json:"domain"`
 		Type     string   `json:"type"`
-		Eval     string   `json:"evalType"`
 		IP       string   `json:"ip"`
 		Category string   `json:"category"`
 		Tags     []string `json:"tags"`
@@ -171,7 +169,7 @@ func (r *Record) UnmarshalJSON(data []byte) error {
 	}
 
 	r.Pattern = d.Domain
-	r.Type = EvalStringToType(d.Eval)
+	r.Type = Type(d.Type)
 	r.IP = net.ParseIP(d.IP)
 	r.Category = d.Category
 	r.Tags = d.Tags

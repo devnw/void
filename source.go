@@ -7,17 +7,6 @@ import (
 	"time"
 )
 
-type Format string
-
-const (
-	HOSTS Format = "hosts"
-	REG   Format = "regex"
-	WILD  Format = "wild"
-	VOID  Format = "void"
-	DIR   Format = "direct"
-	LIST  Format = "list"
-)
-
 type LocType string
 
 const (
@@ -28,7 +17,7 @@ const (
 type Source struct {
 	Path     string
 	Type     LocType
-	Format   Format
+	Format   Type
 	Sync     *time.Duration
 	Category string
 	Tags     []string
@@ -50,7 +39,7 @@ func (s Sources) Records(ctx context.Context) []*Record {
 			defer f.Close()
 			records = append(
 				records,
-				parseFile(ctx, f).Records(
+				Parse(ctx, src.Format, f).Records(
 					src.Path,
 					src.Category,
 					src.Tags...,

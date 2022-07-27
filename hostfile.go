@@ -51,6 +51,7 @@ func (h Hosts) Swap(i, j int) {
 type Host struct {
 	Domain  string `json:"domain"`
 	IP      net.IP `json:"ip"`
+	Type    Type   `json:"type"`
 	Comment string `json:"comment"`
 }
 
@@ -60,7 +61,7 @@ func (h *Host) Record(src, cat string, tags ...string) *Record {
 		Pattern:  h.Domain,
 		IP:       h.IP,
 		Comment:  h.Comment,
-		Type:     DIRECT,
+		Type:     h.Type,
 		Source:   src,
 		Category: cat,
 		Tags:     tags,
@@ -70,7 +71,7 @@ func (h *Host) Record(src, cat string, tags ...string) *Record {
 const columns = 2
 
 // ReadHosts reads host files from the provided directories
-func ReadHosts(ctx context.Context, path string) Hosts {
+func ReadHosts(ctx context.Context, tpe Type, path string) Hosts {
 	var hosts Hosts
 
 	count := 0
@@ -84,13 +85,13 @@ func ReadHosts(ctx context.Context, path string) Hosts {
 				return hosts
 			}
 
-			hosts = append(hosts, parseFile(ctx, body)...)
+			hosts = append(hosts, Parse(ctx, tpe, body)...)
 			count++
 		}
 	}
 }
 
-func parseFile(ctx context.Context, body io.ReadCloser) Hosts {
+func Parse(ctx context.Context, tpe Type, body io.ReadCloser) Hosts {
 	hosts := Hosts{}
 	defer func() {
 		r := recover()
@@ -150,6 +151,7 @@ func parseFile(ctx context.Context, body io.ReadCloser) Hosts {
 			hosts = append(hosts, &Host{
 				IP:      ip,
 				Domain:  name,
+				Type:    tpe,
 				Comment: comment,
 			})
 		}
