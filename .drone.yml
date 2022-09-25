@@ -1,11 +1,18 @@
 kind: pipeline
-name: default
+name: lint 
 
 steps:
   - name: Lint
     image: golangci/golangci-lint
     commands:
       - golangci-lint run -v
+
+---
+
+kind: pipeline
+name: build 
+
+steps:
   - name: Test & Build
     image: golang
     commands:

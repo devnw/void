@@ -43,7 +43,7 @@ type Local struct {
 
 // Intercept implements the stream.InterceptFunc which
 // can then be used throughout the stream library and
-// responds to DNS requests for local DNS records
+// responds to DNS requests for local DNS records.
 func (l *Local) Intercept(
 	ctx context.Context,
 	req *Request,

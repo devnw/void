@@ -39,7 +39,7 @@ func main() {
 	err := root.ExecuteContext(ctx)
 	if err != nil {
 		fmt.Println(err)
-		// nolint:gocritic
+		//nolint:gocritic
 		os.Exit(1)
 	}
 }

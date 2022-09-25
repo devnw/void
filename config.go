@@ -4,7 +4,7 @@ import (
 	gen "go.structs.dev/gen"
 )
 
-// Config defines the configuration options available for void
+// Config defines the configuration options available for void.
 type Config struct {
 	Port  int                     `json:"listen_port"`
 	TTL   int                     `json:"ttl"`
@@ -13,20 +13,20 @@ type Config struct {
 	Deny  gen.Map[string, Record] `json:"deny_records"`
 }
 
-// Type indicates the type of a record to ensure proper analysis
+// Type indicates the type of a record to ensure proper analysis.
 type Type string
 
 const (
-	// DIRECT indicates a direct DNS record, compared 1 to 1
+	// DIRECT indicates a direct DNS record, compared 1 to 1.
 	DIRECT Type = "direct"
 
 	// WILDCARD indicates a wildcard DNS record, (e.g. *.google.com)
 	// which will be converted to the appropriate regex or matched with
-	// HasSuffix check
+	// HasSuffix check.
 	WILDCARD Type = "wildcard"
 
 	// REGEX indicates a regular expression to match DNS requests
-	// against for blocking many records with a single filter
+	// against for blocking many records with a single filter.
 	REGEX Type = "regex"
 
 	VOID Type = "void"

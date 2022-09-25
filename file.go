@@ -16,7 +16,7 @@ import (
 
 // ReadFiles reads the files at the path provided
 // and returns a channel of io.ReadCloser where it
-// deposits the open file
+// deposits the open file.
 func ReadFiles(
 	ctx context.Context,
 	files <-chan string,
@@ -46,7 +46,7 @@ func ReadFiles(
 }
 
 // ReadDirectory recursively reads through the directory structure
-// providing a channel of file paths
+// providing a channel of file paths.
 func ReadDirectory(
 	ctx context.Context,
 	dir string,

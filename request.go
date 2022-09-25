@@ -16,7 +16,7 @@ type Writer interface {
 }
 
 // Request encapsulates all of the request
-// data for evaluation in the pipeline
+// data for evaluation in the pipeline.
 type Request struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -25,7 +25,7 @@ type Request struct {
 	record string
 }
 
-// Record returns the requested domain
+// Record returns the requested domain.
 func (r *Request) Record() string {
 	if r.record == "" {
 		r.record = strings.TrimSuffix(r.r.Question[0].Name, ".")
@@ -35,7 +35,7 @@ func (r *Request) Record() string {
 }
 
 // Key returns a unique identifier for the request which is an aggregate
-// of the name, type, and class
+// of the name, type, and class.
 func (r *Request) Key() string {
 	// TODO: Add validation?
 	q := r.r.Question[0]
@@ -53,7 +53,7 @@ func (r *Request) String() string {
 }
 
 // Block writes a block response to the request
-// directly to the original response writer
+// directly to the original response writer.
 func (r *Request) Block() error {
 	select {
 	case <-r.ctx.Done():
@@ -69,7 +69,7 @@ func (r *Request) Block() error {
 }
 
 // Answer returns a response for a specific domain request with the
-// provided IP address
+// provided IP address.
 func (r *Request) Answer(msg *dns.Msg) error {
 	select {
 	case <-r.ctx.Done():

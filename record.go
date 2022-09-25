@@ -129,7 +129,7 @@ func (r *Record) String() string {
 	)
 }
 
-// MarshalJSON implements the json.Marshaler interface
+// MarshalJSON implements the json.Marshaler interface.
 func (r *Record) MarshalJSON() ([]byte, error) {
 	d := struct {
 		Domain   string   `json:"domain"`
@@ -152,7 +152,7 @@ func (r *Record) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d)
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (r *Record) UnmarshalJSON(data []byte) error {
 	d := struct {
 		Domain   string   `json:"domain"`
@@ -180,7 +180,7 @@ func (r *Record) UnmarshalJSON(data []byte) error {
 }
 
 // Records reads files from the provided list of directories
-// and returns a slice of records
+// and returns a slice of records.
 func Records(ctx context.Context, paths ...string) []Record {
 	var records []Record
 	files := make(chan string)

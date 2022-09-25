@@ -30,7 +30,6 @@ func (c *Cache) Intercept(
 ) (*Request, bool) {
 	if len(req.r.Question) == 0 {
 		err := req.Block()
-
 		if err != nil {
 			c.pub.ErrorFunc(ctx, func() error {
 				return Error{
@@ -76,7 +75,7 @@ func (c *Cache) Intercept(
 
 // interceptor is a dns.ResponseWriter that caches the response
 // for future queries so that they are not re-requesting an updated
-// IP for an address that has already been queried
+// IP for an address that has already been queried.
 type interceptor struct {
 	ctx   context.Context
 	cache *ttl.Cache[string, *dns.Msg]
@@ -87,7 +86,6 @@ type interceptor struct {
 }
 
 func (i *interceptor) WriteMsg(res *dns.Msg) (err error) {
-
 	i.once.Do(func() {
 		ttl := time.Second * DEFAULTTTL
 

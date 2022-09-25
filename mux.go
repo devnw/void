@@ -10,11 +10,11 @@ import (
 )
 
 // HandleFunc is a type alias for the handler function
-// from the dns package
+// from the dns package.
 type HandleFunc func(dns.ResponseWriter, *dns.Msg)
 
 // Convert returns a handler for the DNS server as well as a
-// read-only channel of requests to be pushed down the pipeline
+// read-only channel of requests to be pushed down the pipeline.
 func Convert(
 	pCtx context.Context,
 	pub *event.Publisher,

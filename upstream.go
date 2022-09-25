@@ -19,35 +19,37 @@ import (
 // TODO: Add range validation for numbers in both ipv4 and ipv6
 // TODO: Add fuzz tests
 
-const portReg = `(\:{1}[0-9]{1,5}){0,1}`
-const protoReg = `(tcp|udp|tcp-tls){0,1}(?:\:\/\/){0,1}`
-const ipv4Reg = `(?:[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})`
-const ipv6Reg = `(?:(?:[0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(?::[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(?:ffff(?::0{1,4}){0,1}:){0,1}(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])|(?:[0-9a-fA-F]{1,4}:){1,4}:(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9]))`
+const (
+	portReg  = `(\:{1}[0-9]{1,5}){0,1}`
+	protoReg = `(tcp|udp|tcp-tls){0,1}(?:\:\/\/){0,1}`
+	ipv4Reg  = `(?:[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})`
+	ipv6Reg  = `(?:(?:[0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(?::[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(?:ffff(?::0{1,4}){0,1}:){0,1}(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])|(?:[0-9a-fA-F]{1,4}:){1,4}:(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9]))`
+)
 
 // addrReg is a regular expression for matching the supported
 // address formats
-// <proto>://<server>[:<port>]
+// <proto>://<server>[:<port>].
 var addrReg = regexp.MustCompile(
 	fmt.Sprintf(`^%s(%s|%s)%s$`, protoReg, ipv4Reg, ipv6Reg, portReg),
 )
 
 // Protocol is a type alias of string for categorizing
-// protocols for a DNS server
+// protocols for a DNS server.
 type Protocol string
 
 const (
-	// UDP is the network type for UDP
+	// UDP is the network type for UDP.
 	UDP Protocol = "udp"
 
-	// TCP is the network type for TCP
+	// TCP is the network type for TCP.
 	TCP Protocol = "tcp"
 
-	// TLS is the network type for TLS over TCP
+	// TLS is the network type for TLS over TCP.
 	TLS Protocol = "tcp-tls"
 )
 
 // TLSConfig load a preset tls configuration adding a custom CA certificate
-// to the system trust store if provided
+// to the system trust store if provided.
 func TLSConfig(caCert []byte) (*tls.Config, error) {
 	// Load the system certificate pool
 	caPool, err := x509.SystemCertPool()
@@ -60,8 +62,8 @@ func TLSConfig(caCert []byte) (*tls.Config, error) {
 	if len(caCert) > 0 {
 		// TODO: Move this elsewhere
 		// Load the CA certificate
-		//var caCert []byte
-		//caCert, err = os.ReadFile(ca)
+		// var caCert []byte
+		// caCert, err = os.ReadFile(ca)
 		//if err != nil {
 		//	return nil, err
 		//}
@@ -80,7 +82,7 @@ func TLSConfig(caCert []byte) (*tls.Config, error) {
 }
 
 // Up creates a new DNS client to an Upstream server as defined
-// by the address. The address should follow the format:
+// by the address. The address should follow the format:.
 func Up(
 	ctx context.Context,
 	pub *event.Publisher,
@@ -143,7 +145,6 @@ func Up(
 		}
 
 		// Initialize the upstream connection
-		//u.conn = u.init(ctx)
 
 		upstreams = append(upstreams, u)
 	}
@@ -171,8 +172,8 @@ type Upstream struct {
 	client *dns.Client
 
 	// upstream connection
-	//conn <-chan *dns.Conn
-	//new  chan *dns.Conn
+
+
 
 	// Time before reconnecting the client
 	reconnect time.Duration
@@ -185,8 +186,7 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 	out := make(chan *dns.Conn)
 
 	go func() {
-		//var ticker <-chan time.Time
-		//if u.proto != UDP {
+		// if u.proto != UDP {
 		//	t := time.NewTicker(u.reconnect)
 		//	defer t.Stop()
 
@@ -212,9 +212,9 @@ func (u *Upstream) init(ctx context.Context) <-chan *dns.Conn {
 			select {
 			case <-ctx.Done():
 				return
-			//case <-ticker: // THIS IS NOT CORRECT, blocking requests after reconnect
+
 			//	u.reconn(ctx, conn)
-			//case u.new <- u.reconn(ctx, conn): // THIS IS NOT CORRECT
+			// case u.new <- u.reconn(ctx, conn): // THIS IS NOT CORRECT
 			case out <- conn:
 			}
 		}
@@ -243,7 +243,7 @@ func (u *Upstream) reconn(ctx context.Context, conn *dns.Conn) *dns.Conn {
 	}
 
 	// Close the connection
-	//conn.Close()
+
 	conn = newConn
 
 	// Update the connection
@@ -278,8 +278,8 @@ func (u *Upstream) Intercept(
 	select {
 	case <-ctx.Done():
 		return
-	//case conn, ok := <-u.conn:
-	//if !ok {
+	// case conn, ok := <-u.conn:
+	// if !ok {
 	//	return
 	//}
 	default:
@@ -287,9 +287,7 @@ func (u *Upstream) Intercept(
 		// Send the Request
 		// TODO: Log RTT
 		resp, _, err := u.client.ExchangeContext(ctx, req.r, u.addr())
-
 		// If the connection was broken, reconnect and retry
-		//if errors.Is(err, syscall.EPIPE) {
 		//	select {
 		//	case <-ctx.Done():
 		//		return
@@ -297,11 +295,9 @@ func (u *Upstream) Intercept(
 		//		if !ok {
 		//			return
 		//		}
-
 		//		resp, _, err = u.client.ExchangeWithConn(req.r, conn)
 		//	}
 		//}
-
 		if err != nil {
 			u.pub.ErrorFunc(ctx, func() error {
 				return Error{

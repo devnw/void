@@ -47,7 +47,7 @@ func (h Hosts) Swap(i, j int) {
 // NOTE: According to the link above multiple domains are allowed per IP
 // as long as they're on the same line, space separated.
 //
-// TODO: Determine if this is something to support (i.e. local dns resolution)
+// TODO: Determine if this is something to support (i.e. local dns resolution).
 type Host struct {
 	Domain  string `json:"domain"`
 	IP      net.IP `json:"ip"`
@@ -55,7 +55,7 @@ type Host struct {
 	Comment string `json:"comment"`
 }
 
-// Record converts a host record to a void domain record
+// Record converts a host record to a void domain record.
 func (h *Host) Record(src, cat string, tags ...string) *Record {
 	return &Record{
 		Pattern:  h.Domain,
@@ -70,7 +70,7 @@ func (h *Host) Record(src, cat string, tags ...string) *Record {
 
 const columns = 2
 
-// ReadHosts reads host files from the provided directories
+// ReadHosts reads host files from the provided directories.
 func ReadHosts(ctx context.Context, tpe Type, path string) Hosts {
 	var hosts Hosts
 

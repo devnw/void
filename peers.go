@@ -12,7 +12,7 @@ const peerProtoReg = `(tcp|quic|tcp-tls){0,1}(?:\:\/\/){0,1}`
 
 // peerAddrReg is a regular expression for matching the supported
 // address formats
-// <proto>://<server>[:<port>]
+// <proto>://<server>[:<port>].
 var peerAddrReg = regexp.MustCompile(
 	fmt.Sprintf(`^%s(%s|%s)%s$`, peerProtoReg, ipv4Reg, ipv6Reg, portReg),
 )

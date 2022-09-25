@@ -189,8 +189,10 @@ func (e *expr) match(
 	return struct{}{}, false
 }
 
-var ErrWildcard = fmt.Errorf("invalid wildcard")
-var ErrDomain = fmt.Errorf("invalid domain")
+var (
+	ErrWildcard = fmt.Errorf("invalid wildcard")
+	ErrDomain   = fmt.Errorf("invalid domain")
+)
 
 func Wildcard(entry string) (*regexp.Regexp, error) {
 	wild := strings.LastIndex(entry, "*")

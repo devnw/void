@@ -8,11 +8,15 @@ import (
 	"go.devnw.com/event"
 )
 
-var cloudflareIpv4S = "1.1.1.1"
-var cloudflareIpv4 = net.ParseIP(cloudflareIpv4S)
+var (
+	cloudflareIpv4S = "1.1.1.1"
+	cloudflareIpv4  = net.ParseIP(cloudflareIpv4S)
+)
 
-var cloudflareIpv6S = "2606:4700:4700::1111"
-var cloudflareIpv6 = net.ParseIP(cloudflareIpv6S)
+var (
+	cloudflareIpv6S = "2606:4700:4700::1111"
+	cloudflareIpv6  = net.ParseIP(cloudflareIpv6S)
+)
 
 func Test_Up(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())

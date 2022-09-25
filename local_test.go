@@ -119,7 +119,6 @@ func Test_Local_Intercept(t *testing.T) {
 			// Passthrough
 			if r != nil {
 				t.Fatalf("expected nil, got %v", r)
-
 			}
 
 			// Check answer
