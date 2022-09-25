@@ -1,5 +1,25 @@
+linters-settings:
+  tagliatelle:
+    case:
+      rules:
+        # Support string case: 
+        # `camel`, `pascal`, `kebab`, `snake`, `goCamel`, 
+        # `goPascal`, `goKebab`, `goSnake`, `upper`, `lower`
+        json: snake 
+        yaml: camel
+        xml: camel
 linters:
   enable-all: true
+
+  disable:
+    - paralleltest
+    - wrapcheck
+    - varnamelen
+    - nlreturn
+    - exhaustivestruct
+    - exhaustruct
+    - ifshort
+    - wsl
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source
