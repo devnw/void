@@ -39,3 +39,18 @@ steps:
     when:
       event:
         - tag
+---
+
+kind: pipeline
+name: after
+
+steps:
+- name: notify
+  image: plugins/slack
+  settings:
+    room: dev
+    webhook:
+      from_secret: slack_webhook
+depends_on:
+ - lint
+ - build

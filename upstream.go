@@ -64,7 +64,7 @@ func TLSConfig(caCert []byte) (*tls.Config, error) {
 		// Load the CA certificate
 		// var caCert []byte
 		// caCert, err = os.ReadFile(ca)
-		//if err != nil {
+		// if err != nil {
 		//	return nil, err
 		//}
 
@@ -172,8 +172,6 @@ type Upstream struct {
 	client *dns.Client
 
 	// upstream connection
-
-
 
 	// Time before reconnecting the client
 	reconnect time.Duration
