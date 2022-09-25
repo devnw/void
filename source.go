@@ -84,14 +84,14 @@ func (s *Source) Local(ctx context.Context) ([]*Record, error) {
 		}
 
 		defer f.Close()
-		records = append(
-			records,
-			Parse(ctx, src.Format, f).Records(
-				src.Path,
-				src.Category,
-				src.Tags...,
-			)...,
+		entries := Parse(ctx, src.Format, f).Records(
+			src.Path,
+			src.Category,
+			src.Tags...,
 		)
+
+		fmt.Printf("loaded %d entries from %s\n", len(entries), src.Path)
+		records = append(records, entries...)
 	}
 
 	return records, nil
@@ -120,11 +120,14 @@ func (s *Source) Remote(ctx context.Context) ([]*Record, error) {
 			continue
 		}
 
-		records = append(records, Parse(ctx, src.Format, body).Records(
+		entries := Parse(ctx, src.Format, body).Records(
 			src.Path,
 			src.Category,
 			src.Tags...,
-		)...)
+		)
+
+		fmt.Printf("loaded %d entries from %s\n", len(entries), src.Path)
+		records = append(records, entries...)
 	}
 
 	return records, nil

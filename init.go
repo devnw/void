@@ -38,6 +38,7 @@ func init() {
 		"config file location",
 	)
 
+	// Fix this with: https://umarcor.github.io/cobra/#getting-started
 	viper.BindPFlag("config", root.PersistentFlags().Lookup("config"))
 	if viper.GetString("config") != "" {
 		viper.SetConfigFile(viper.GetString("config"))

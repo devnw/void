@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"strconv"
@@ -12,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -57,23 +55,17 @@ func exec(cmd *cobra.Command, _ []string) {
 		log.Fatal(err)
 	}
 
-	spew.Dump(localSrcs.Records(ctx))
-
 	var allowSrcs Sources
 	err = viper.UnmarshalKey("DNS.Allow", &allowSrcs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	spew.Dump(allowSrcs)
-
 	var blockSrcs Sources
 	err = viper.UnmarshalKey("DNS.Block", &blockSrcs)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	spew.Dump(blockSrcs.Records(ctx))
 
 	port := uint16(viper.GetUint("DNS.Port"))
 	upstreams := viper.GetStringSlice("DNS.Upstream")
@@ -127,31 +119,12 @@ func exec(cmd *cobra.Command, _ []string) {
 		ttl.NewCache[string, *dns.Msg](ctx, time.Minute, false),
 	}
 
-	local, err := LocalResolver(ctx, pub,
-		&Record{
-			Pattern: "dns.kolhar.net",
-			Type:    DIRECT,
-			IP:      net.ParseIP("192.168.0.15"),
-			Tags:    []string{"local", "kolhar"},
-			Source:  "local",
-		},
-		&Record{
-			Pattern: "*kolhar.net",
-			Type:    WILDCARD,
-			IP:      net.ParseIP("192.168.0.3"),
-			Tags:    []string{"local", "kolhar"},
-			Source:  "local",
-		})
+	local, err := LocalResolver(ctx, pub, localSrcs.Records(ctx)...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	allow, err := AllowResolver(ctx, pub, upStreamFan,
-		&Record{
-			Pattern: "google.com",
-			Type:    DIRECT,
-		},
-	)
+	allow, err := AllowResolver(ctx, pub, upStreamFan, allowSrcs.Records(ctx)...)
 	if err != nil {
 		log.Fatal(err)
 	}

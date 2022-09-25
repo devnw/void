@@ -14,6 +14,7 @@ type Event struct {
 	Server   string   `json:"server,omitempty"`
 	Record   *Record  `json:"record"`
 	Category Category `json:"category"`
+	Source   string   `json:"source"`
 }
 
 func (e *Event) String() string {
@@ -26,8 +27,13 @@ func (e *Event) String() string {
 	if e.Server != "" {
 		srv = fmt.Sprintf(" | server: %s", e.Server)
 	}
+
+	src := ""
+	if e.Source != "" {
+		src = fmt.Sprintf(" | source: %s", e.Source)
+	}
 	return fmt.Sprintf(
-		"%sname: %s | type: %s%s; %s: %s, tags: [%s]",
+		"%sname: %s | type: %s%s; %s: %s, tags: [%s]%s",
 		msg,
 		e.Name,
 		e.Type,
@@ -35,6 +41,7 @@ func (e *Event) String() string {
 		e.Record.Type,
 		e.Record.Pattern,
 		strings.Join(e.Record.Tags, ","),
+		src,
 	)
 }
 

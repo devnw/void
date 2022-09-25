@@ -7,7 +7,7 @@ require (
 	github.com/miekg/dns v1.1.50
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/viper v1.12.0
-	go.atomizer.io/stream v1.0.4
+	go.atomizer.io/stream v1.0.7
 	go.devnw.com/alog v1.1.1
 	go.devnw.com/event v1.0.2
 	go.devnw.com/ttl v1.1.2

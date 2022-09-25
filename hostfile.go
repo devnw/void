@@ -110,50 +110,57 @@ func Parse(ctx context.Context, tpe Type, body io.ReadCloser) Hosts {
 	lines := strings.Split(string(data), "\n")
 
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
+		hosts = append(hosts, parseLine(line, tpe)...)
+	}
 
-		var comment string
-		commentIndex := strings.Index(line, "#")
-		if commentIndex != -1 {
-			// Pull the comment for the line for
-			// later use.
-			comment = strings.TrimSpace(
-				line[commentIndex+1:],
-			)
+	return hosts
+}
 
-			// Trim the comment from the line.
-			line = strings.TrimSpace(
-				line[:commentIndex],
-			)
-		}
+func parseLine(line string, tpe Type) Hosts {
+	line = strings.TrimSpace(line)
+	if line == "" || strings.HasPrefix(line, "#") {
+		return Hosts{}
+	}
 
-		ip := net.ParseIP("0.0.0.0")
-		first := strings.Index(line, " ")
-		if first != -1 {
-			ip = net.ParseIP(line[:first])
-		}
+	var comment string
+	commentIndex := strings.Index(line, "#")
+	if commentIndex != -1 {
+		// Pull the comment for the line for
+		// later use.
+		comment = strings.TrimSpace(
+			line[commentIndex+1:],
+		)
 
-		// Pull the IP
-		if ip == nil {
-			continue
-		}
+		// Trim the comment from the line.
+		line = strings.TrimSpace(
+			line[:commentIndex],
+		)
+	}
 
-		names := strings.Split(strings.TrimSpace(line[first+1:]), " ")
-		if len(names) < 1 {
-			continue
-		}
+	ip := net.ParseIP("0.0.0.0")
+	first := strings.Index(line, " ")
+	if first != -1 {
+		ip = net.ParseIP(line[:first])
+	}
 
-		for _, name := range names {
-			hosts = append(hosts, &Host{
-				IP:      ip,
-				Domain:  name,
-				Type:    tpe,
-				Comment: comment,
-			})
-		}
+	// Pull the IP
+	if ip == nil {
+		return Hosts{}
+	}
+
+	names := strings.Split(strings.TrimSpace(line[first+1:]), " ")
+	if len(names) < 1 {
+		return Hosts{}
+	}
+
+	hosts := Hosts{}
+	for _, name := range names {
+		hosts = append(hosts, &Host{
+			IP:      ip,
+			Domain:  name,
+			Type:    tpe,
+			Comment: comment,
+		})
 	}
 
 	return hosts
