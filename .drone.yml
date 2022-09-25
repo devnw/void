@@ -1,0 +1,34 @@
+kind: pipeline
+name: default
+
+steps:
+  - name: Lint
+    image: golangci/golangci-lint
+    commands:
+      - golangci-lint run -v
+  - name: Test & Build
+    image: golang
+    commands:
+      - go test -v -race -failfast -cover ./...
+      - go build
+    when:
+    branch:
+      - main
+    event:
+      - push
+      - pull_request
+      - tag
+  - name: Fetch Tags for Release
+    image: docker:git
+    commands:
+      - git fetch --tags
+    when:
+      event:
+        - tag
+  - name: Execute Release
+    image: goreleaser/goreleaser
+    commands:
+      - goreleaser release
+    when:
+      event:
+        - tag
