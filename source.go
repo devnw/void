@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -20,31 +21,77 @@ type Source struct {
 	Tags     []string
 }
 
-func get(ctx context.Context, path string) (io.ReadCloser, error) {
+type tee struct {
+	io.Reader
+	c io.Closer
+}
+
+func (t tee) Close() error {
+	if t.c != nil {
+		return t.c.Close()
+	}
+
+	return nil
+}
+
+func get(
+	ctx context.Context, path string, cacheDir string,
+) (io.ReadCloser, error) {
 	c := http.DefaultClient
+
+	var f *os.File
+	if cacheDir != "" {
+		cache := filepath.Join(cacheDir, strings.ReplaceAll(path, "/", "_"))
+
+		var err error
+		f, err = os.OpenFile(cache, os.O_RDWR|os.O_CREATE, 0644)
+		if err != nil {
+			log.Print(err)
+			f = nil
+		}
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 	if err != nil {
+		if f != nil {
+			return f, nil
+		}
+
 		return nil, err
 	}
 
 	resp, err := c.Do(req)
 	if err != nil {
+		if f != nil {
+			return f, nil
+		}
+
 		return nil, err
 	}
 
 	if resp.StatusCode > 299 {
+		if f != nil {
+			return f, nil
+		}
+
 		return nil, fmt.Errorf("%s: %s", path, resp.Status)
 	}
 
-	return resp.Body, nil
+	t := &tee{
+		io.TeeReader(resp.Body, f),
+		resp.Body,
+	}
+
+	return t, nil
 }
 
-func (s *Source) Records(ctx context.Context) ([]*Record, error) {
+func (s *Source) Records(
+	ctx context.Context, cacheDir string,
+) ([]*Record, error) {
 	records := make([]*Record, 0)
 
 	if strings.HasPrefix(s.Path, "http") {
-		r, err := s.Remote(ctx)
+		r, err := s.Remote(ctx, cacheDir)
 		if err != nil {
 			return nil, err
 		}
@@ -97,13 +144,15 @@ func (s *Source) Local(ctx context.Context) ([]*Record, error) {
 	return records, nil
 }
 
-func (s *Source) Remote(ctx context.Context) ([]*Record, error) {
+func (s *Source) Remote(
+	ctx context.Context, cacheDir string,
+) ([]*Record, error) {
 	srcs := []*Source{s}
 
 	if s.Lists {
 		srcs = []*Source{}
 
-		body, err := get(ctx, s.Path)
+		body, err := get(ctx, s.Path, cacheDir)
 		if err != nil {
 			return nil, err
 		}
@@ -114,7 +163,7 @@ func (s *Source) Remote(ctx context.Context) ([]*Record, error) {
 	records := make([]*Record, 0)
 
 	for _, src := range srcs {
-		body, err := get(ctx, src.Path)
+		body, err := get(ctx, src.Path, cacheDir)
 		if err != nil {
 			fmt.Println(err)
 			continue
@@ -162,11 +211,11 @@ func readSrcs(parent *Source, body io.ReadCloser) []*Source {
 
 type Sources []Source
 
-func (s Sources) Records(ctx context.Context) []*Record {
+func (s Sources) Records(ctx context.Context, cacheDir string) []*Record {
 	records := make([]*Record, 0)
 
 	for _, src := range s {
-		r, err := src.Records(ctx)
+		r, err := src.Records(ctx, cacheDir)
 		if err != nil {
 			log.Println(err)
 			continue

@@ -70,6 +70,22 @@ func exec(cmd *cobra.Command, _ []string) {
 	port := uint16(viper.GetUint("DNS.Port"))
 	upstreams := viper.GetStringSlice("DNS.Upstream")
 
+	cacheDir := viper.GetString("DNS.Cache")
+	if cacheDir != "" {
+		err := os.MkdirAll(cacheDir, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	logs := viper.GetString("DNS.Logs")
+	if logs != "" {
+		err := os.MkdirAll(logs, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	i := &Initializer[*Request, *Request]{pub}
 
 	if viper.GetBool("verbose") {
@@ -119,17 +135,17 @@ func exec(cmd *cobra.Command, _ []string) {
 		ttl.NewCache[string, *dns.Msg](ctx, time.Minute, false),
 	}
 
-	local, err := LocalResolver(ctx, pub, localSrcs.Records(ctx)...)
+	local, err := LocalResolver(ctx, pub, localSrcs.Records(ctx, cacheDir)...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	allow, err := AllowResolver(ctx, pub, upStreamFan, allowSrcs.Records(ctx)...)
+	allow, err := AllowResolver(ctx, pub, upStreamFan, allowSrcs.Records(ctx, cacheDir)...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	block, err := BlockResolver(ctx, pub, blockSrcs.Records(ctx)...)
+	block, err := BlockResolver(ctx, pub, blockSrcs.Records(ctx, cacheDir)...)
 	if err != nil {
 		log.Fatal(err)
 	}

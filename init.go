@@ -38,6 +38,18 @@ func init() {
 		"config file location",
 	)
 
+	root.PersistentFlags().String(
+		"cache",
+		"/etc/void/cache",
+		"cache folder for remote sources",
+	)
+
+	root.PersistentFlags().String(
+		"logs",
+		"/var/log/void",
+		"directory where logs will be stored, or stdout|stderr if empty",
+	)
+
 	// Fix this with: https://umarcor.github.io/cobra/#getting-started
 	viper.BindPFlag("config", root.PersistentFlags().Lookup("config"))
 	if viper.GetString("config") != "" {
@@ -69,6 +81,8 @@ func init() {
 
 	viper.BindPFlag("DNS.Port", root.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("DNS.Upstream", root.PersistentFlags().Lookup("upstream"))
+	viper.BindPFlag("DNS.Cache", root.PersistentFlags().Lookup("cache"))
+	viper.BindPFlag("DNS.Logs", root.PersistentFlags().Lookup("logs"))
 	viper.BindPFlag("DNS.Peers", root.PersistentFlags().Lookup("peers"))
 
 	viper.AutomaticEnv()
