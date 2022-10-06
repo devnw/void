@@ -23,15 +23,21 @@ type Source struct {
 
 type tee struct {
 	io.Reader
-	c io.Closer
+	req  io.Closer
+	file io.Closer
 }
 
 func (t tee) Close() error {
-	if t.c != nil {
-		return t.c.Close()
+	var err error
+	if t.req != nil {
+		err = t.req.Close()
 	}
 
-	return nil
+	if t.file != nil {
+		err = t.file.Close()
+	}
+
+	return err
 }
 
 func get(
@@ -80,6 +86,7 @@ func get(
 	t := &tee{
 		io.TeeReader(resp.Body, f),
 		resp.Body,
+		f,
 	}
 
 	return t, nil
