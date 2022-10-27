@@ -86,7 +86,7 @@ func init() {
 	viper.BindPFlag("DNS.Peers", root.PersistentFlags().Lookup("peers"))
 
 	viper.AutomaticEnv()
-	viper.SetConfigName("void")
+	viper.SetConfigName("config")
 
 	viper.AddConfigPath("/etc/void/")
 

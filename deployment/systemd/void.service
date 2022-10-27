@@ -1,0 +1,12 @@
+[Unit]
+Description=Void DNS Sink Hole and Local Resolver
+After=network-online.target
+
+[Service]
+PIDFile=/var/run/void/void.pid
+ExecStartPre=/usr/bin/mkdir -p /var/run/void
+ExecStart=/usr/bin/void
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

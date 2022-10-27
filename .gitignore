@@ -2,6 +2,9 @@ void
 void.yaml
 void.json
 void.toml
+
+dist/
+
 *.hosts
 
 # Removing Vendor

@@ -1,0 +1,76 @@
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: void 
+    binary: void 
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+archives:
+  - replacements:
+      amd64: x86_64
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ incpatch .Version }}-{{ .ShortCommit }}"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+dockers:
+  - id: void
+    ids:
+      -  void
+    goos: linux
+    goarch: amd64
+    dockerfile: deployment/docker/Dockerfile
+    image_templates:
+      - "ghcr.io/devnw/void:{{ .ShortCommit }}"
+      - "ghcr.io/devnw/void:v{{ .Major }}"
+      - "ghcr.io/devnw/void:{{ .Tag }}"
+      - "ghcr.io/devnw/void:latest"
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title=Void DNS Sink Hole"
+      - "--label=org.opencontainers.image.description=Void is a DNS sink hole and local DNS resolver"
+      - "--label=org.opencontainers.image.url=https://avoid.dev"
+      - "--label=org.opencontainers.image.authors=info@devnw.com"
+      - "--label=org.opencontainers.image.source=https://github.com/devnw/void"
+      - "--label=org.opencontainers.image.documentation=https://avoid.dev"
+      - "--label=org.opencontainers.image.licenses=Apache 2.0"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--platform=linux/amd64"
+    extra_files:
+      - LICENSE
+release:
+  prerelease: auto
+
+nfpms:
+- maintainer: Developer Network (devnw)
+  description: Void DNS Sink Hole and Local DNS Resolver
+  homepage: https://avoid.dev
+  license: Apache License, Version 2.0
+  builds:
+    - void 
+  formats:
+    - deb
+  bindir: /usr/bin
+  contents:
+    - src: ./deployment/config/void.yaml
+      dst: /etc/void/config.yaml
+      type: config
+    - src: ./deployment/systemd/void.service
+      dst: /usr/lib/systemd/system/void.service
+      type: config
+  scripts:
+    postinstall: ./deployment/scripts/postinstall.sh
+    preremove: ./deployment/scripts/preremove.sh
+
