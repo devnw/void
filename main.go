@@ -56,21 +56,21 @@ func exec(cmd *cobra.Command, _ []string) {
 	}
 
 	var allowSrcs Sources
-	err = viper.UnmarshalKey("DNS.Allow", &allowSrcs)
+	err = viper.UnmarshalKey("dns.allow", &allowSrcs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	var blockSrcs Sources
-	err = viper.UnmarshalKey("DNS.Block", &blockSrcs)
+	err = viper.UnmarshalKey("dns.block", &blockSrcs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	port := uint16(viper.GetUint("DNS.Port"))
-	upstreams := viper.GetStringSlice("DNS.Upstream")
+	port := uint16(viper.GetUint("dns.port"))
+	upstreams := viper.GetStringSlice("dns.upstream")
 
-	cacheDir := viper.GetString("DNS.Cache")
+	cacheDir := viper.GetString("dns.cache")
 	if cacheDir != "" {
 		err := os.MkdirAll(cacheDir, 0755)
 		if err != nil {
@@ -78,7 +78,7 @@ func exec(cmd *cobra.Command, _ []string) {
 		}
 	}
 
-	logs := viper.GetString("DNS.Logs")
+	logs := viper.GetString("dns.logs")
 	if logs != "" {
 		err := os.MkdirAll(logs, 0755)
 		if err != nil {

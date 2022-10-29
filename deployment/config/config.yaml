@@ -1,0 +1,91 @@
+# Void DNS Sink Hole and Local DNS Resolver Config File
+#
+# This file is used to configure the Void DNS Sink Hole and Local DNS Resolver.
+# The configuration file can be in YAML, JSON, or TOML format, named config
+# with the appropriate extension.
+#
+# The configuration file is loaded from the following locations, in order:
+#  - /etc/void/config.yaml
+#  - $HOME/.void/config.yaml
+#  - ./config.yaml
+#
+# The configuration file can be overridden with the --config flag.
+#
+# There are three types of dns entries:
+# - local:  A list of local domains that will be resolved by Void.
+# - allow:  A list of domains that will be resolved upstream, bypassing
+#          Void's DNS sink hole.
+# - block: A list of domains that will be blocked by Void's DNS sink hole.
+#
+# DNS resolution is performed in the following order:
+#
+# 1. If the domain is in the local list, resolve the domain locally.
+# 2. If the domain is in the allow list, resolve the domain upstream.
+# 3. If the domain is in the block list, return empty response.
+#
+# Void supports local and remote lists, or lists of lists.
+#
+# Lists can be regular expressions, wildcard domains, or exact domains. They
+# can also be lists that point to other lists (requires additional config, see
+# below) that contain regex, wildcard, or exact domains. Direct lists do not
+# require the `format` to be specified, but regex and wildcard lists do.
+#
+# NOTE: The file extension is not used to determine the format of the list,
+# it is the `format` field that determines the format of the list.
+#
+# Direct List Example
+# - path: "/etc/void/local.hosts"
+#
+# Regex List Example
+# - path: "/etc/void/hosts.regex"
+#   format: regex
+#
+# Wildcard List Example
+# - path: "/etc/void/hosts.wild"
+#   format: wildcard
+#
+# List of Lists Example
+# - path: "/etc/void/hosts.lists"
+#   lists: true
+#   format: direct # Optional, defaults to direct if not specified
+#
+#
+# Void understands lists in hostfile format, or line delimited format.
+#
+# Void supports either local or remote files (urls beginning with http:// or
+# https://). Remote files are cached locally in the configured cache directory.
+# 
+# Defaults
+# -------
+# The default configuration is:
+#
+# Port: 53
+# 
+# Upstream is Cloudflare TLS encrypted DNS:
+# - tcp-tls://1.1.1.1:853
+# - tcp-tls://1.0.0.1:853
+#
+# Logs: /var/log/void
+#
+# Cache: /etc/void/cache
+
+dns:
+  #port: 53 # default
+  #upstream: [ # default
+  #  "tcp-tls://1.1.1.1:853",
+  #  "tcp-tls://1.0.0.1:853",
+  #]
+  local:
+    #- path: "/etc/void/local.hosts"
+    
+    #- path: "/etc/void/local.regex"
+    #  format: regex 
+    
+    #- path: "/etc/void/local.wild"
+    #  format: wildcard
+    
+    #- path: "/etc/void/local.lists"
+    #  lists: true
+    #  format: regex
+  allow:
+  block:

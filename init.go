@@ -11,7 +11,16 @@ import (
 
 var (
 	version string
-	root    = &cobra.Command{
+	commit  string
+	date    string
+	cfgPath string
+)
+
+const defaultConfigDir = "/etc/void"
+const defaultConfigName = "config"
+
+var (
+	root = &cobra.Command{
 		Use:     "void [flags]",
 		Short:   "void is a simple cluster based dns provider/sink",
 		Version: version,
@@ -24,19 +33,18 @@ var (
 // TODO: Root command should base function on config file
 
 func init() {
+	cobra.OnInitialize(initConfig)
+
+	root.PersistentFlags().StringVar(&cfgPath, "config", "", "config path")
+
 	root.PersistentFlags().BoolP(
 		"verbose",
 		"v",
 		false,
 		"verbose output",
 	)
-	viper.BindPFlag("verbose", root.PersistentFlags().Lookup("verbose"))
 
-	root.PersistentFlags().String(
-		"config",
-		"",
-		"config file location",
-	)
+	viper.BindPFlag("verbose", root.PersistentFlags().Lookup("verbose"))
 
 	root.PersistentFlags().String(
 		"cache",
@@ -79,16 +87,28 @@ func init() {
 		"DNS cluster peers (example: tcp://192.168.0.10, tcp-tls://, quic://)",
 	)
 
-	viper.BindPFlag("DNS.Port", root.PersistentFlags().Lookup("port"))
-	viper.BindPFlag("DNS.Upstream", root.PersistentFlags().Lookup("upstream"))
-	viper.BindPFlag("DNS.Cache", root.PersistentFlags().Lookup("cache"))
-	viper.BindPFlag("DNS.Logs", root.PersistentFlags().Lookup("logs"))
-	viper.BindPFlag("DNS.Peers", root.PersistentFlags().Lookup("peers"))
+	viper.BindPFlag("dns.port", root.PersistentFlags().Lookup("port"))
+	viper.BindPFlag("dns.upstream", root.PersistentFlags().Lookup("upstream"))
+	viper.BindPFlag("dns.cache", root.PersistentFlags().Lookup("cache"))
+	viper.BindPFlag("dns.logs", root.PersistentFlags().Lookup("logs"))
+	viper.BindPFlag("dns.peers", root.PersistentFlags().Lookup("peers"))
 
-	viper.AutomaticEnv()
-	viper.SetConfigName("config")
+}
 
-	viper.AddConfigPath("/etc/void/")
+func initConfig() {
+	if cfgPath != "" {
+		// Use config file from the flag.
+		viper.SetConfigFile(cfgPath)
+	} else {
+		viper.SetConfigName(defaultConfigName)
+		viper.AddConfigPath(defaultConfigDir)
+
+		// Check working directory for config
+		wd, err := os.Getwd()
+		if err == nil {
+			viper.AddConfigPath(wd)
+		}
+	}
 
 	// Check home directory/.void for config
 	home, err := os.UserHomeDir()
@@ -101,6 +121,11 @@ func init() {
 	if err == nil {
 		viper.AddConfigPath(wd)
 	}
+
+	// Use VOID as a prefix for all environment variables that
+	// map to configuration values
+	viper.SetEnvPrefix("VOID")
+	viper.AutomaticEnv()
 
 	err = viper.ReadInConfig()
 	if err != nil {

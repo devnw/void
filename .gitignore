@@ -1,7 +1,7 @@
 void
-void.yaml
-void.json
-void.toml
+config.yaml
+config.json
+config.toml
 
 dist/
 
