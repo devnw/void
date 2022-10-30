@@ -64,7 +64,7 @@ nfpms:
     - deb
   bindir: /usr/bin
   contents:
-    - src: ./deployment/config/void.yaml
+    - src: ./deployment/config/config.yaml
       dst: /etc/void/config.yaml
       type: config
     - src: ./deployment/systemd/void.service

@@ -10,7 +10,7 @@ jobs:
     name: "Build & Unit Tests"
     strategy:
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        platform: [ubuntu-latest]
       fail-fast: true
     runs-on: ${{ matrix.platform }}
     steps:
