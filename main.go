@@ -72,7 +72,7 @@ func exec(cmd *cobra.Command, _ []string) {
 
 	cacheDir := viper.GetString("dns.cache")
 	if cacheDir != "" {
-		err := os.MkdirAll(cacheDir, 0755)
+		err := os.MkdirAll(cacheDir, 0o755)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -80,7 +80,7 @@ func exec(cmd *cobra.Command, _ []string) {
 
 	logs := viper.GetString("dns.logs")
 	if logs != "" {
-		err := os.MkdirAll(logs, 0755)
+		err := os.MkdirAll(logs, 0o755)
 		if err != nil {
 			log.Fatal(err)
 		}

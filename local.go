@@ -36,7 +36,7 @@ func LocalResolver(
 // records nor does it handle caching upstream DNS records. This is strictly
 // for local DNS records.
 type Local struct {
-	Matcher
+	*Matcher
 	ctx context.Context
 	pub *event.Publisher
 }

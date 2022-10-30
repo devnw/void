@@ -50,7 +50,7 @@ func get(
 		cache := filepath.Join(cacheDir, strings.ReplaceAll(path, "/", "_"))
 
 		var err error
-		f, err = os.OpenFile(cache, os.O_RDWR|os.O_CREATE, 0644)
+		f, err = os.OpenFile(cache, os.O_RDWR|os.O_CREATE, 0o644)
 		if err != nil {
 			log.Print(err)
 			f = nil
@@ -120,8 +120,6 @@ func (s *Source) Local(ctx context.Context) ([]*Record, error) {
 	srcs := []*Source{s}
 
 	if s.Lists {
-		srcs = []*Source{}
-
 		f, err := os.Open(s.Path)
 		if err != nil {
 			log.Fatal(err)
@@ -157,8 +155,6 @@ func (s *Source) Remote(
 	srcs := []*Source{s}
 
 	if s.Lists {
-		srcs = []*Source{}
-
 		body, err := get(ctx, s.Path, cacheDir)
 		if err != nil {
 			return nil, err

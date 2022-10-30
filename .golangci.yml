@@ -20,6 +20,16 @@ linters:
     - exhaustruct
     - ifshort
     - wsl
+    - nosnakecase 
+    - varcheck
+    - scopelint
+    - interfacer
+    - golint
+    - deadcode
+    - structcheck
+    - maligned
+    - nonamedreturns
+    - gomnd
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source

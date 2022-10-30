@@ -32,7 +32,7 @@ func AllowResolver(
 }
 
 type Allow struct {
-	Matcher
+	*Matcher
 	ctx      context.Context
 	pub      *event.Publisher
 	upstream chan<- *Request

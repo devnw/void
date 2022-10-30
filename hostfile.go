@@ -188,7 +188,6 @@ func Extract(ctx context.Context, in <-chan []byte) (<-chan string, error) {
 // extract returns an intercept function which bypasses the direct
 // output of the stream and instead sends the output to the given
 // channel so that it can fan-out to other streams.
-// nolint:gocritic
 func extract(out chan<- string) stream.InterceptFunc[[]byte, struct{}] {
 	return func(ctx context.Context, body []byte) (struct{}, bool) {
 		var nextline string

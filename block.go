@@ -31,7 +31,7 @@ func BlockResolver(
 }
 
 type Block struct {
-	Matcher
+	*Matcher
 	ctx      context.Context
 	pub      *event.Publisher
 	upstream chan<- *Request

@@ -41,7 +41,7 @@ dockers:
       - "--label=org.opencontainers.image.title=Void DNS Sink Hole"
       - "--label=org.opencontainers.image.description=Void is a DNS sink hole and local DNS resolver"
       - "--label=org.opencontainers.image.url=https://avoid.dev"
-      - "--label=org.opencontainers.image.authors=info@devnw.com"
+      - "--label=org.opencontainers.image.authors=info@avoid.dev"
       - "--label=org.opencontainers.image.source=https://github.com/devnw/void"
       - "--label=org.opencontainers.image.documentation=https://avoid.dev"
       - "--label=org.opencontainers.image.licenses=Apache 2.0"

@@ -169,13 +169,15 @@ func (e *expr) match(
 	ctx context.Context,
 	req matcher,
 ) (struct{}, bool) {
-	ctx, data := req.Data()
+	rctx, data := req.Data()
 	if data == "" {
 		return struct{}{}, false
 	}
 
 	select {
 	case <-ctx.Done():
+		return struct{}{}, false
+	case <-rctx.Done():
 		return struct{}{}, false
 	default:
 		var matched *Record

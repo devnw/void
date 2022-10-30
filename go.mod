@@ -1,6 +1,6 @@
 module go.avoid.dev/void
 
-go 1.18
+go 1.19
 
 require (
 	github.com/miekg/dns v1.1.50

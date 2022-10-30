@@ -15,16 +15,11 @@ import (
 	"go.devnw.com/event"
 )
 
-type Matcher interface {
-	Match(context.Context, string) *Record
-	Add(*Record)
-}
-
 func NewMatcher(
 	ctx context.Context,
 	pub *event.Publisher,
 	records ...*Record,
-) (Matcher, error) {
+) (*Matcher, error) {
 	err := checkNil(ctx, pub)
 	if err != nil {
 		return nil, err
@@ -50,7 +45,7 @@ func NewMatcher(
 		}
 	}
 
-	return &m{
+	return &Matcher{
 		ctx:     ctx,
 		pub:     pub,
 		records: directs,
@@ -58,7 +53,7 @@ func NewMatcher(
 	}, nil
 }
 
-type m struct {
+type Matcher struct {
 	ctx       context.Context
 	pub       *event.Publisher
 	records   map[string]*Record
@@ -66,13 +61,13 @@ type m struct {
 	regex     *Regex
 }
 
-func (m *m) Add(r *Record) {
+func (m *Matcher) Add(r *Record) {
 	m.recordsMu.Lock()
 	m.records[r.Pattern] = r
 	m.recordsMu.Unlock()
 }
 
-func (m *m) Match(ctx context.Context, domain string) *Record {
+func (m *Matcher) Match(ctx context.Context, domain string) *Record {
 	if m.records == nil {
 		return nil
 	}

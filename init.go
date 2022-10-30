@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -16,23 +17,30 @@ var (
 	cfgPath string
 )
 
-const defaultConfigDir = "/etc/void"
-const defaultConfigName = "config"
-
-var (
-	root = &cobra.Command{
-		Use:     "void [flags]",
-		Short:   "void is a simple cluster based dns provider/sink",
-		Version: version,
-		Run:     exec,
-	}
+const (
+	defaultConfigDir  = "/etc/void"
+	defaultConfigName = "config"
 )
+
+var root = &cobra.Command{
+	Use:     "void [flags]",
+	Short:   "void is a simple cluster based dns provider/sink",
+	Version: version,
+	Run:     exec,
+}
 
 // TODO: Make DNS sink a subcommand
 // TODO: Make Proxy a subcommand (future)
 // TODO: Root command should base function on config file
 
 func init() {
+	var err error
+	defer func() {
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
 	cobra.OnInitialize(initConfig)
 
 	root.PersistentFlags().StringVar(&cfgPath, "config", "", "config path")
@@ -44,7 +52,10 @@ func init() {
 		"verbose output",
 	)
 
-	viper.BindPFlag("verbose", root.PersistentFlags().Lookup("verbose"))
+	err = viper.BindPFlag("verbose", root.PersistentFlags().Lookup("verbose"))
+	if err != nil {
+		return
+	}
 
 	root.PersistentFlags().String(
 		"cache",
@@ -59,7 +70,11 @@ func init() {
 	)
 
 	// Fix this with: https://umarcor.github.io/cobra/#getting-started
-	viper.BindPFlag("config", root.PersistentFlags().Lookup("config"))
+	err = viper.BindPFlag("config", root.PersistentFlags().Lookup("config"))
+	if err != nil {
+		return
+	}
+
 	if viper.GetString("config") != "" {
 		viper.SetConfigFile(viper.GetString("config"))
 	}
@@ -87,12 +102,30 @@ func init() {
 		"DNS cluster peers (example: tcp://192.168.0.10, tcp-tls://, quic://)",
 	)
 
-	viper.BindPFlag("dns.port", root.PersistentFlags().Lookup("port"))
-	viper.BindPFlag("dns.upstream", root.PersistentFlags().Lookup("upstream"))
-	viper.BindPFlag("dns.cache", root.PersistentFlags().Lookup("cache"))
-	viper.BindPFlag("dns.logs", root.PersistentFlags().Lookup("logs"))
-	viper.BindPFlag("dns.peers", root.PersistentFlags().Lookup("peers"))
+	err = viper.BindPFlag("dns.port", root.PersistentFlags().Lookup("port"))
+	if err != nil {
+		return
+	}
 
+	err = viper.BindPFlag("dns.upstream", root.PersistentFlags().Lookup("upstream"))
+	if err != nil {
+		return
+	}
+
+	err = viper.BindPFlag("dns.cache", root.PersistentFlags().Lookup("cache"))
+	if err != nil {
+		return
+	}
+
+	err = viper.BindPFlag("dns.logs", root.PersistentFlags().Lookup("logs"))
+	if err != nil {
+		return
+	}
+
+	err = viper.BindPFlag("dns.peers", root.PersistentFlags().Lookup("peers"))
+	if err != nil {
+		return
+	}
 }
 
 func initConfig() {

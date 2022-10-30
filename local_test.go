@@ -13,6 +13,7 @@ import (
 )
 
 func Question(t *testing.T, domain string, qtype uint16) *dns.Msg {
+	t.Helper()
 	t.Logf("%s %s", domain, dns.Type(qtype))
 
 	m := new(dns.Msg)
