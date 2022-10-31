@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"strings"
 	"time"
 
 	stream "go.atomizer.io/stream"
+	"go.devnw.com/event"
 )
 
 type Hosts []*Host
@@ -71,11 +71,16 @@ func (h *Host) Record(src, cat string, tags ...string) *Record {
 const columns = 2
 
 // ReadHosts reads host files from the provided directories.
-func ReadHosts(ctx context.Context, tpe Type, path string) Hosts {
+func ReadHosts(
+	ctx context.Context,
+	pub *event.Publisher,
+	tpe Type,
+	path string,
+) Hosts {
 	var hosts Hosts
 
 	count := 0
-	bodies := ReadFiles(ctx, ReadDirectory(ctx, path))
+	bodies := ReadFiles(ctx, pub, ReadDirectory(ctx, pub, path))
 	for {
 		select {
 		case <-ctx.Done():
@@ -85,13 +90,18 @@ func ReadHosts(ctx context.Context, tpe Type, path string) Hosts {
 				return hosts
 			}
 
-			hosts = append(hosts, Parse(ctx, tpe, body)...)
+			hosts = append(hosts, Parse(ctx, pub, tpe, body)...)
 			count++
 		}
 	}
 }
 
-func Parse(ctx context.Context, tpe Type, body io.ReadCloser) Hosts {
+func Parse(
+	ctx context.Context,
+	pub *event.Publisher,
+	tpe Type,
+	body io.ReadCloser,
+) Hosts {
 	hosts := Hosts{}
 	defer func() {
 		r := recover()
@@ -103,14 +113,24 @@ func Parse(ctx context.Context, tpe Type, body io.ReadCloser) Hosts {
 	data, err := io.ReadAll(body)
 	body.Close()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		pub.ErrorFunc(ctx, func() error {
+			return &Error{
+				Msg:   "failed to read host file",
+				Inner: err,
+			}
+		})
 		return nil
 	}
 
 	lines := strings.Split(string(data), "\n")
 
 	for _, line := range lines {
-		hosts = append(hosts, parseLine(line, tpe)...)
+		select {
+		case <-ctx.Done():
+			return hosts
+		default:
+			hosts = append(hosts, parseLine(line, tpe)...)
+		}
 	}
 
 	return hosts

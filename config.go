@@ -29,8 +29,6 @@ const (
 	// REGEX indicates a regular expression to match DNS requests
 	// against for blocking many records with a single filter.
 	REGEX Type = "regex"
-
-	VOID Type = "void"
 )
 
 func (t Type) String() string {

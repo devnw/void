@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/miekg/dns"
 	"go.devnw.com/event"
@@ -32,9 +31,8 @@ func BlockResolver(
 
 type Block struct {
 	*Matcher
-	ctx      context.Context
-	pub      *event.Publisher
-	upstream chan<- *Request
+	ctx context.Context
+	pub *event.Publisher
 }
 
 func (b *Block) Intercept(
@@ -52,7 +50,7 @@ func (b *Block) Intercept(
 	err := req.Block()
 	if err != nil {
 		b.pub.ErrorFunc(ctx, func() error {
-			return fmt.Errorf("failed to block request: %v", err)
+			return NewErr(req, err, "failed to block request")
 		})
 	}
 
@@ -63,6 +61,8 @@ func (b *Block) Intercept(
 			Type:     dns.Type(req.r.Question[0].Qtype),
 			Category: BLOCK,
 			Record:   record,
+			Server:   req.server,
+			Client:   req.client,
 		}
 	})
 

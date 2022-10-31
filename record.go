@@ -176,19 +176,23 @@ func (r *Record) UnmarshalJSON(data []byte) error {
 
 // Records reads files from the provided list of directories
 // and returns a slice of records.
-func Records(ctx context.Context, paths ...string) []Record {
+func Records(
+	ctx context.Context,
+	pub *event.Publisher,
+	paths ...string,
+) []Record {
 	var records []Record
 	files := make(chan string)
 
 	for _, path := range paths {
 		go stream.Pipe(
 			ctx,
-			ReadDirectory(ctx, path),
+			ReadDirectory(ctx, pub, path),
 			files,
 		)
 	}
 
-	bodies := ReadFiles(ctx, files)
+	bodies := ReadFiles(ctx, pub, files)
 	for body := range bodies {
 		data, err := io.ReadAll(body)
 		body.Close()

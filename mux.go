@@ -46,6 +46,8 @@ func Convert(
 			cancel: cancel,
 			w:      writer,
 			r:      req,
+			server: w.LocalAddr().String(),
+			client: w.RemoteAddr().String(),
 		}
 
 		select {

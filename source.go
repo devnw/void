@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"go.devnw.com/event"
 )
 
 type Source struct {
@@ -66,6 +68,7 @@ func get(
 		return nil, err
 	}
 
+	//nolint:bodyclose // closed elsewhere
 	resp, err := c.Do(req)
 	if err != nil {
 		if f != nil {
@@ -93,12 +96,12 @@ func get(
 }
 
 func (s *Source) Records(
-	ctx context.Context, cacheDir string,
+	ctx context.Context, pub *event.Publisher, cacheDir string,
 ) ([]*Record, error) {
 	records := make([]*Record, 0)
 
 	if strings.HasPrefix(s.Path, "http") {
-		r, err := s.Remote(ctx, cacheDir)
+		r, err := s.Remote(ctx, pub, cacheDir)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +110,7 @@ func (s *Source) Records(
 		return records, nil
 	}
 
-	r, err := s.Local(ctx)
+	r, err := s.Local(ctx, pub)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +119,10 @@ func (s *Source) Records(
 	return records, nil
 }
 
-func (s *Source) Local(ctx context.Context) ([]*Record, error) {
+func (s *Source) Local(
+	ctx context.Context,
+	pub *event.Publisher,
+) ([]*Record, error) {
 	srcs := []*Source{s}
 
 	if s.Lists {
@@ -136,7 +142,7 @@ func (s *Source) Local(ctx context.Context) ([]*Record, error) {
 		}
 
 		defer f.Close()
-		entries := Parse(ctx, src.Format, f).Records(
+		entries := Parse(ctx, pub, src.Format, f).Records(
 			src.Path,
 			src.Category,
 			src.Tags...,
@@ -150,7 +156,7 @@ func (s *Source) Local(ctx context.Context) ([]*Record, error) {
 }
 
 func (s *Source) Remote(
-	ctx context.Context, cacheDir string,
+	ctx context.Context, pub *event.Publisher, cacheDir string,
 ) ([]*Record, error) {
 	srcs := []*Source{s}
 
@@ -168,17 +174,31 @@ func (s *Source) Remote(
 	for _, src := range srcs {
 		body, err := get(ctx, src.Path, cacheDir)
 		if err != nil {
-			fmt.Println(err)
+			pub.ErrorFunc(ctx, func() error {
+				return &Error{
+					Msg:   "failed to get remote source",
+					Inner: err,
+				}
+			})
 			continue
 		}
 
-		entries := Parse(ctx, src.Format, body).Records(
+		entries := Parse(ctx, pub, src.Format, body).Records(
 			src.Path,
 			src.Category,
 			src.Tags...,
 		)
 
-		fmt.Printf("loaded %d entries from %s\n", len(entries), src.Path)
+		pub.EventFunc(ctx, func() event.Event {
+			return &Event{
+				Msg: fmt.Sprintf(
+					"loaded %d entries from %s",
+					len(entries),
+					src.Path,
+				),
+			}
+		})
+
 		records = append(records, entries...)
 	}
 
@@ -214,11 +234,15 @@ func readSrcs(parent *Source, body io.ReadCloser) []*Source {
 
 type Sources []Source
 
-func (s Sources) Records(ctx context.Context, cacheDir string) []*Record {
+func (s Sources) Records(
+	ctx context.Context,
+	pub *event.Publisher,
+	cacheDir string,
+) []*Record {
 	records := make([]*Record, 0)
 
 	for _, src := range s {
-		r, err := src.Records(ctx, cacheDir)
+		r, err := src.Records(ctx, pub, cacheDir)
 		if err != nil {
 			log.Println(err)
 			continue

@@ -137,17 +137,17 @@ func exec(cmd *cobra.Command, _ []string) {
 		ttl.NewCache[string, *dns.Msg](ctx, time.Minute, false),
 	}
 
-	local, err := LocalResolver(ctx, pub, localSrcs.Records(ctx, cacheDir)...)
+	local, err := LocalResolver(ctx, pub, localSrcs.Records(ctx, pub, cacheDir)...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	allow, err := AllowResolver(ctx, pub, upStreamFan, allowSrcs.Records(ctx, cacheDir)...)
+	allow, err := AllowResolver(ctx, pub, upStreamFan, allowSrcs.Records(ctx, pub, cacheDir)...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	block, err := BlockResolver(ctx, pub, blockSrcs.Records(ctx, cacheDir)...)
+	block, err := BlockResolver(ctx, pub, blockSrcs.Records(ctx, pub, cacheDir)...)
 	if err != nil {
 		log.Fatal(err)
 	}

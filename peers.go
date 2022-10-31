@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-
-	"go.devnw.com/event"
 )
 
 const peerProtoReg = `(tcp|quic|tcp-tls){0,1}(?:\:\/\/){0,1}`
@@ -19,12 +17,16 @@ var peerAddrReg = regexp.MustCompile(
 
 func Peers(
 	ctx context.Context,
-	pub *event.Publisher,
 	addresses ...string,
 ) error {
 	for _, addr := range addresses {
-		if !peerAddrReg.MatchString(addr) {
-			return fmt.Errorf("invalid peer address: %s", addr)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			if !peerAddrReg.MatchString(addr) {
+				return fmt.Errorf("invalid peer address: %s", addr)
+			}
 		}
 	}
 

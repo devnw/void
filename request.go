@@ -23,6 +23,8 @@ type Request struct {
 	w      Writer
 	r      *dns.Msg
 	record string
+	server string
+	client string
 }
 
 // Record returns the requested domain.

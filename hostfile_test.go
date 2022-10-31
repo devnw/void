@@ -4,13 +4,17 @@ import (
 	"context"
 	"testing"
 	"unsafe"
+
+	"go.devnw.com/event"
 )
 
 func Test_HostFile_ReadHosts(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	hosts := ReadHosts(ctx, DIRECT, "testdata/direct/")
+	pub := event.NewPublisher(ctx)
+
+	hosts := ReadHosts(ctx, pub, DIRECT, "testdata/direct/")
 
 	records := hosts.Records("remote", "block", "pihole")
 	for _, host := range records {
@@ -23,7 +27,7 @@ func Test_HostFile_ReadHosts(t *testing.T) {
 func size(records []*Record) uintptr {
 	total := uintptr(0)
 	for _, record := range records {
-		total += uintptr(unsafe.Sizeof(*record))
+		total += unsafe.Sizeof(*record)
 	}
 
 	return total

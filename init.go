@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	version string
-	commit  string
-	date    string
+	version string = "dev"
+
+	//nolint:gochecknoglobals // necessary for cobra init
 	cfgPath string
 )
 
@@ -22,6 +22,7 @@ const (
 	defaultConfigName = "config"
 )
 
+//nolint:gochecknoglobals // necessary for cobra root command
 var root = &cobra.Command{
 	Use:     "void [flags]",
 	Short:   "void is a simple cluster based dns provider/sink",

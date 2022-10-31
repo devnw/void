@@ -30,12 +30,24 @@ func (c Category) String() string {
 	return string(c)
 }
 
+func NewErr(r *Request, inner error, msg string) *Error {
+	return &Error{
+		Msg:    msg,
+		Inner:  inner,
+		Record: r.Record(),
+		Server: r.server,
+		Client: r.client,
+	}
+}
+
 type Error struct {
-	Category Category `json:"category"`
-	Server   string   `json:"server"`
 	Msg      string   `json:"msg"`
-	Inner    error    `json:"inner"`
-	Record   string   `json:"domain"`
+	Inner    error    `json:"inner,omitempty"`
+	Record   string   `json:"domain,omitempty"`
+	Category Category `json:"category,omitempty"`
+	Client   string   `json:"client,omitempty"`
+	Server   string   `json:"server,omitempty"`
+	Metadata string   `json:"metadata,omitempty"`
 }
 
 func (e Error) String() string {
@@ -61,6 +73,7 @@ func (e Error) Error() string {
 }
 
 func (e Error) Unwrap() error {
+	//nolint:errorlint // this is correctly implemented
 	wrapped, ok := e.Inner.(wrappedErr)
 	if !ok {
 		return e.Inner

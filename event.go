@@ -11,6 +11,7 @@ type Event struct {
 	Msg      string   `json:"msg"`
 	Name     string   `json:"name"`
 	Type     dns.Type `json:"type"`
+	Client   string   `json:"client,omitempty"`
 	Server   string   `json:"server,omitempty"`
 	Record   *Record  `json:"record"`
 	Category Category `json:"category"`

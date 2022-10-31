@@ -32,7 +32,10 @@ func Match(
 			exp, err = Wildcard(record.Pattern)
 			if err != nil {
 				pub.ErrorFunc(ctx, func() error {
-					return fmt.Errorf("%s: %s", record.Pattern, err)
+					return &Error{
+						Msg:   "error building wildcard matching regex",
+						Inner: fmt.Errorf("%s: %s", record.Pattern, err),
+					}
 				})
 
 				continue
@@ -41,7 +44,10 @@ func Match(
 			exp, err = regexp.Compile(record.Pattern)
 			if err != nil {
 				pub.ErrorFunc(ctx, func() error {
-					return fmt.Errorf("%s: %s", record.Pattern, err)
+					return &Error{
+						Msg:   "error compiling regex",
+						Inner: fmt.Errorf("%s: %s", record.Pattern, err),
+					}
 				})
 
 				continue
@@ -64,7 +70,10 @@ func Match(
 		_, err = s.Exec(ctx, in)
 		if err != nil {
 			pub.ErrorFunc(ctx, func() error {
-				return fmt.Errorf("%s: %s", record.Pattern, err)
+				return &Error{
+					Msg:   "error initializing regex matching",
+					Inner: fmt.Errorf("%s: %s", record.Pattern, err),
+				}
 			})
 		}
 	}
