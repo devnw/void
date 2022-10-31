@@ -62,7 +62,8 @@ func parseRegexFile(ctx context.Context, body io.ReadCloser) []*regexp.Regexp {
 			)
 		}
 
-		r, err := regexp.Compile(line)
+		var r *regexp.Regexp
+		r, err = regexp.Compile(line)
 		if err != nil {
 			continue
 		}

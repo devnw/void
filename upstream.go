@@ -126,7 +126,6 @@ func Up(
 		// if the network is TLS
 		var tlsConfig *tls.Config
 		if proto == TLS {
-			var err error
 			tlsConfig, err = TLSConfig(nil)
 			if err != nil {
 				return nil, err

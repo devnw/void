@@ -29,6 +29,13 @@ func init() {
 }
 
 func main() {
+	var err error
+	defer func() {
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
 	ctx, cancel := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,
@@ -36,12 +43,7 @@ func main() {
 	)
 	defer cancel()
 
-	err := root.ExecuteContext(ctx)
-	if err != nil {
-		fmt.Println(err)
-		//nolint:gocritic
-		os.Exit(1)
-	}
+	err = root.ExecuteContext(ctx)
 }
 
 func exec(cmd *cobra.Command, _ []string) {

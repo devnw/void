@@ -32,8 +32,8 @@ func (tw *TestWriter) WriteMsg(res *dns.Msg) error {
 }
 
 func Test_Local_Intercept(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	pctx, pcancel := context.WithCancel(context.Background())
+	defer pcancel()
 
 	tests := map[string]struct {
 		records []*Record
@@ -48,8 +48,8 @@ func Test_Local_Intercept(t *testing.T) {
 				IP:      net.ParseIP("192.168.0.1"),
 			}},
 			request: &Request{
-				ctx:    ctx,
-				cancel: cancel,
+				ctx:    pctx,
+				cancel: pcancel,
 				w:      &TestWriter{}, // test writer
 				r:      Question(t, "test.example.tld.", dns.TypeA),
 			},
@@ -70,8 +70,8 @@ func Test_Local_Intercept(t *testing.T) {
 				IP:      net.ParseIP("192.168.0.1"),
 			}},
 			request: &Request{
-				ctx:    ctx,
-				cancel: cancel,
+				ctx:    pctx,
+				cancel: pcancel,
 				w:      &TestWriter{}, // test writer
 				r:      Question(t, "mismatch.tld.", dns.TypeA),
 			},
@@ -81,7 +81,7 @@ func Test_Local_Intercept(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(pctx)
 			defer cancel()
 
 			pub := event.NewPublisher(ctx)
