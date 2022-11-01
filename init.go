@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	version string = "dev"
+	version = "dev"
 
 	//nolint:gochecknoglobals // necessary for cobra init
 	cfgPath string
@@ -20,6 +20,7 @@ var (
 const (
 	defaultConfigDir  = "/etc/void"
 	defaultConfigName = "config"
+	defaultPort       = 53
 )
 
 //nolint:gochecknoglobals // necessary for cobra root command
@@ -66,11 +67,14 @@ func init() {
 
 	root.PersistentFlags().String(
 		"logs",
-		"/var/log/void",
+		"/var/log/void/void.log",
 		"directory where logs will be stored, or stdout|stderr if empty",
 	)
+	err = viper.BindPFlag("logs", root.PersistentFlags().Lookup("logs"))
+	if err != nil {
+		return
+	}
 
-	// Fix this with: https://umarcor.github.io/cobra/#getting-started
 	err = viper.BindPFlag("config", root.PersistentFlags().Lookup("config"))
 	if err != nil {
 		return
@@ -83,7 +87,7 @@ func init() {
 	root.PersistentFlags().Uint16P(
 		"port",
 		"p",
-		53,
+		defaultPort,
 		"DNS listening port",
 	)
 

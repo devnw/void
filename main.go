@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -23,6 +24,9 @@ import (
 // DEFAULTTTL defines the default ttl for records that either do not
 // provide a TTL, are blocked, or are local records.
 const DEFAULTTTL = 3600
+
+const defaultLife = time.Millisecond * 100
+const defaultWait = time.Millisecond
 
 func init() {
 	viper.SetEnvPrefix("VOID")
@@ -46,13 +50,33 @@ func main() {
 	err = root.ExecuteContext(ctx)
 }
 
+//nolint:funlen // this contains the CLI flags
 func exec(cmd *cobra.Command, _ []string) {
 	ctx := cmd.Context()
 
 	pub := event.NewPublisher(ctx)
 
+	logs := viper.GetString("dns.logs")
+	if logs != "" {
+		err := os.MkdirAll(filepath.Dir(logs), 0o755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	logger, err := configLogger(ctx, logs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	logger.Errorc(ctx, pub.ReadErrors(0).Interface())
+
+	if viper.GetBool("verbose") {
+		logger.Printc(ctx, pub.ReadEvents(0).Interface())
+	}
+
 	var localSrcs Sources
-	err := viper.UnmarshalKey("dns.local", &localSrcs)
+	err = viper.UnmarshalKey("dns.local", &localSrcs)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -80,21 +104,7 @@ func exec(cmd *cobra.Command, _ []string) {
 		}
 	}
 
-	logs := viper.GetString("dns.logs")
-	if logs != "" {
-		err := os.MkdirAll(logs, 0o755)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
 	i := &Initializer[*Request, *Request]{pub}
-
-	if viper.GetBool("verbose") {
-		alog.Printc(ctx, pub.ReadEvents(0).Interface())
-	}
-
-	alog.Errorc(ctx, pub.ReadErrors(0).Interface())
 
 	server := &dns.Server{
 		Addr: ":" + strconv.Itoa(int(port)),
@@ -177,12 +187,15 @@ func exec(cmd *cobra.Command, _ []string) {
 		log.Fatal(err)
 	}
 
-	fmt.Fprintf(
-		os.Stderr,
-		"void listening on port %v; upstream [%s]\n",
-		port,
-		strings.Join(upstreams, ", "),
-	)
+	pub.EventFunc(ctx, func() event.Event {
+		return &Event{
+			Msg: fmt.Sprintf(
+				"void listening on port %v; upstream [%s]\n",
+				port,
+				strings.Join(upstreams, ", "),
+			),
+		}
+	})
 
 	go func() {
 		<-ctx.Done()
@@ -208,8 +221,8 @@ func (i *Initializer[T, U]) Scale(
 	f stream.InterceptFunc[T, U],
 ) <-chan U {
 	s := stream.Scaler[T, U]{
-		Wait: time.Millisecond,
-		Life: time.Millisecond * 100,
+		Wait: defaultWait,
+		Life: defaultLife,
 		Fn:   f,
 	}
 
@@ -223,10 +236,26 @@ func (i *Initializer[T, U]) Scale(
 	return out
 }
 
-func configLogger(ctx context.Context, prefix string) error {
-	return alog.Global(
+func configLogger(ctx context.Context, file string) (alog.Logger, error) {
+	eOut := os.Stderr
+	iOut := os.Stdout
+	if len(file) > 0 && file != ":stdout:" {
+		out, err := os.OpenFile(
+			file,
+			os.O_WRONLY|os.O_APPEND|os.O_CREATE,
+			0o644,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		eOut = out
+		iOut = out
+	}
+
+	return alog.New(
 		ctx,
-		prefix,
+		"",
 		alog.DEFAULTTIMEFORMAT,
 		time.UTC,
 		0,
@@ -234,12 +263,12 @@ func configLogger(ctx context.Context, prefix string) error {
 			{
 				Types:  alog.INFO | alog.DEBUG,
 				Format: alog.JSON,
-				Writer: os.Stdout,
+				Writer: iOut,
 			},
 			{
 				Types:  alog.ERROR | alog.CRIT | alog.FATAL,
 				Format: alog.JSON,
-				Writer: os.Stderr,
+				Writer: eOut,
 			},
 		}...,
 	)

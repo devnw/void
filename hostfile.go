@@ -106,7 +106,12 @@ func Parse(
 	defer func() {
 		r := recover()
 		if r != nil {
-			fmt.Printf("error parsing host file; %s\n", r)
+			pub.ErrorFunc(ctx, func() error {
+				return &Error{
+					Msg:   "error parsing hosts file",
+					Inner: fmt.Errorf("%v", r),
+				}
+			})
 		}
 	}()
 
@@ -199,7 +204,7 @@ func Extract(ctx context.Context, in <-chan []byte) (<-chan string, error) {
 
 	_, err := s.Exec(ctx, in)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	return out, nil

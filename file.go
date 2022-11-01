@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -102,7 +101,6 @@ func ReadDirectory(
 				case <-ctx.Done():
 					return
 				case out <- path.Join(dir, i.Name()):
-					fmt.Println(i.Name())
 				}
 
 				continue

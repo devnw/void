@@ -78,7 +78,7 @@ func get(
 		return nil, err
 	}
 
-	if resp.StatusCode > 299 {
+	if resp.StatusCode >= http.StatusMultipleChoices {
 		if f != nil {
 			return f, nil
 		}
@@ -128,7 +128,7 @@ func (s *Source) Local(
 	if s.Lists {
 		f, err := os.Open(s.Path)
 		if err != nil {
-			log.Fatal(err)
+			return nil, err
 		}
 
 		srcs = readSrcs(s, f)
@@ -138,7 +138,13 @@ func (s *Source) Local(
 	for _, src := range srcs {
 		f, err := os.Open(src.Path)
 		if err != nil {
-			log.Fatal(err)
+			pub.ErrorFunc(ctx, func() error {
+				return &Error{
+					Msg:   "failed to open local source",
+					Inner: err,
+				}
+			})
+			continue
 		}
 
 		defer f.Close()
@@ -148,7 +154,16 @@ func (s *Source) Local(
 			src.Tags...,
 		)
 
-		fmt.Printf("loaded %d entries from %s\n", len(entries), src.Path)
+		pub.EventFunc(ctx, func() event.Event {
+			return &Event{
+				Msg: fmt.Sprintf(
+					"loaded %d entries from %s",
+					len(entries),
+					src.Path,
+				),
+			}
+		})
+
 		records = append(records, entries...)
 	}
 

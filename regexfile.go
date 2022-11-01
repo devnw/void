@@ -30,7 +30,6 @@ func ReadRegex(
 
 			regex = append(regex, parseRegexFile(ctx, pub, body)...)
 			count++
-			fmt.Printf("Processed %d files\n", count)
 		}
 	}
 }

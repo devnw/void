@@ -13,7 +13,7 @@ type Event struct {
 	Type     dns.Type `json:"type"`
 	Client   string   `json:"client,omitempty"`
 	Server   string   `json:"server,omitempty"`
-	Record   *Record  `json:"record"`
+	Record   *Record  `json:"record,omitempty"`
 	Category Category `json:"category"`
 	Source   string   `json:"source"`
 }
@@ -26,22 +26,37 @@ func (e *Event) String() string {
 
 	srv := ""
 	if e.Server != "" {
-		srv = fmt.Sprintf(" | server: %s", e.Server)
+		srv = fmt.Sprintf(" | server: %s;", e.Server)
+	}
+
+	client := ""
+	if e.Client != "" {
+		client = fmt.Sprintf(" | client: %s;", e.Client)
 	}
 
 	src := ""
 	if e.Source != "" {
-		src = fmt.Sprintf(" | source: %s", e.Source)
+		src = fmt.Sprintf(" | source: %s;", e.Source)
 	}
+
+	rec := ""
+	if e.Record != nil {
+		rec = fmt.Sprintf(
+			" | record type: %s: %s, tags: [%s]",
+			e.Record.Type,
+			e.Record.Pattern,
+			strings.Join(e.Record.Tags, ", "),
+		)
+	}
+
 	return fmt.Sprintf(
-		"%sname: %s | type: %s%s; %s: %s, tags: [%s]%s",
+		"%s name: %s | type: %s%s%s%s%s",
 		msg,
 		e.Name,
 		e.Type,
 		srv,
-		e.Record.Type,
-		e.Record.Pattern,
-		strings.Join(e.Record.Tags, ","),
+		client,
+		rec,
 		src,
 	)
 }
