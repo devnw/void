@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -63,8 +62,6 @@ func exec(cmd *cobra.Command, _ []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	spew.Dump(logConfig)
 
 	logger, err := configLogger(ctx, logConfig)
 	if err != nil {
