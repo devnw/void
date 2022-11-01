@@ -65,9 +65,21 @@
 # - tcp-tls://1.1.1.1:853
 # - tcp-tls://1.0.0.1:853
 #
-# Logs: /var/log/void
-#
 # Cache: /etc/void/cache
+
+# Logger configures the log location and log rotation settings.
+#
+# Uses configuration from https://github.com/natefinch/lumberjack/tree/v2.0
+logger:
+  filename: "/var/log/void/void.log"
+  maxage: 30
+  # maxsize: 100 # MB
+  # maxbackups: 10
+  # localtime: false
+  compress: true
+
+verbose: false
+
 
 dns:
   #port: 53 # default
