@@ -3,15 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -19,6 +20,7 @@ import (
 	"go.devnw.com/alog"
 	"go.devnw.com/event"
 	"go.devnw.com/ttl"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // DEFAULTTTL defines the default ttl for records that either do not
@@ -56,15 +58,15 @@ func exec(cmd *cobra.Command, _ []string) {
 
 	pub := event.NewPublisher(ctx)
 
-	logs := viper.GetString("dns.logs")
-	if logs != "" {
-		err := os.MkdirAll(filepath.Dir(logs), 0o755)
-		if err != nil {
-			log.Fatal(err)
-		}
+	logConfig := &lumberjack.Logger{}
+	err := viper.UnmarshalKey("logger", logConfig)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	logger, err := configLogger(ctx, logs)
+	spew.Dump(logConfig)
+
+	logger, err := configLogger(ctx, logConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -190,7 +192,7 @@ func exec(cmd *cobra.Command, _ []string) {
 	pub.EventFunc(ctx, func() event.Event {
 		return &Event{
 			Msg: fmt.Sprintf(
-				"void listening on port %v; upstream [%s]\n",
+				"void listening on port %v; upstream [%s]",
 				port,
 				strings.Join(upstreams, ", "),
 			),
@@ -236,21 +238,14 @@ func (i *Initializer[T, U]) Scale(
 	return out
 }
 
-func configLogger(ctx context.Context, file string) (alog.Logger, error) {
-	eOut := os.Stderr
-	iOut := os.Stdout
-	if len(file) > 0 && file != ":stdout:" {
-		out, err := os.OpenFile(
-			file,
-			os.O_WRONLY|os.O_APPEND|os.O_CREATE,
-			0o644,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		eOut = out
-		iOut = out
+func configLogger(
+	ctx context.Context, jack *lumberjack.Logger,
+) (alog.Logger, error) {
+	eOut := io.Writer(os.Stderr)
+	iOut := io.Writer(os.Stdout)
+	if len(jack.Filename) > 0 && jack.Filename != ":stdout:" {
+		eOut = jack
+		iOut = jack
 	}
 
 	return alog.New(

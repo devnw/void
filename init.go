@@ -65,16 +65,6 @@ func init() {
 		"cache folder for remote sources",
 	)
 
-	root.PersistentFlags().String(
-		"logs",
-		"/var/log/void/void.log",
-		"directory where logs will be stored, or stdout|stderr if empty",
-	)
-	err = viper.BindPFlag("logs", root.PersistentFlags().Lookup("logs"))
-	if err != nil {
-		return
-	}
-
 	err = viper.BindPFlag("config", root.PersistentFlags().Lookup("config"))
 	if err != nil {
 		return
@@ -118,11 +108,6 @@ func init() {
 	}
 
 	err = viper.BindPFlag("dns.cache", root.PersistentFlags().Lookup("cache"))
-	if err != nil {
-		return
-	}
-
-	err = viper.BindPFlag("dns.logs", root.PersistentFlags().Lookup("logs"))
 	if err != nil {
 		return
 	}
