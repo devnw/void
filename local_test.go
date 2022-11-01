@@ -3,12 +3,9 @@ package main
 import (
 	"context"
 	"net"
-	"reflect"
 	"testing"
-	"time"
 
 	"github.com/miekg/dns"
-	"go.devnw.com/alog"
 	"go.devnw.com/event"
 )
 
@@ -85,23 +82,6 @@ func Test_Local_Intercept(t *testing.T) {
 			defer cancel()
 
 			pub := event.NewPublisher(ctx)
-			defer pub.Close()
-
-			logger, err := alog.New(
-				ctx,
-				"test",
-				alog.DEFAULTTIMEFORMAT,
-				time.UTC,
-				0,
-				alog.TestDestinations(ctx, t)...,
-			)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer logger.Close()
-
-			logger.Printc(ctx, pub.ReadEvents(0).Interface())
-			logger.Errorc(ctx, pub.ReadErrors(0).Interface())
 
 			local, err := LocalResolver(ctx, pub, test.records...)
 			if err != nil {
@@ -128,8 +108,12 @@ func Test_Local_Intercept(t *testing.T) {
 				t.Fatalf("expected TestWriter, got %T", test.request.w)
 			}
 
-			if !reflect.DeepEqual(w.response.Answer[0], test.answer) {
-				t.Fatalf("expected %v, got %v", test.answer, w.response)
+			if w.response.Answer[0].String() != test.answer.String() {
+				t.Fatalf(
+					"expected\n[%s]\ngot\n[%s]",
+					test.answer.String(),
+					w.response.Answer[0].String(),
+				)
 			}
 		})
 	}
