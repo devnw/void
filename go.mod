@@ -11,7 +11,7 @@ require (
 	go.devnw.com/event v1.0.2
 	go.devnw.com/ttl v1.1.2
 	go.structs.dev/gen v1.0.1
-	gopkg.in/natefinch/lumberjack.v2 v2.0.0
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
 require (
