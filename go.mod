@@ -3,7 +3,7 @@ module go.avoid.dev/void
 go 1.19
 
 require (
-	github.com/miekg/dns v1.1.51
+	github.com/miekg/dns v1.1.52
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.15.0
 	go.atomizer.io/stream v1.0.7
