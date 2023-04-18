@@ -1,5 +1,5 @@
 FROM scratch
 
-COPY void /usr/bin/void
+COPY void /
 
-ENTRYPOINT [ "/usr/bin/void" ]
+ENTRYPOINT [ "/void" ]
