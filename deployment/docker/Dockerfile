@@ -1,6 +1,6 @@
-FROM scratch
+FROM alpine:latest
 
-COPY void /
-COPY deployment/config/config.yaml /
+COPY void /usr/bin/void
+COPY deployment/config/config.yaml /etc/void/config.yaml
 
-ENTRYPOINT [ "/void" ]
+ENTRYPOINT [ "/usr/bin/void" ]
