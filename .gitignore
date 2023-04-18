@@ -1,7 +1,4 @@
 void
-config.yaml
-config.json
-config.toml
 
 dist/
 
