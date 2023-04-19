@@ -10,9 +10,6 @@ builds:
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
-archives:
-  - replacements:
-      amd64: x86_64
 checksum:
   name_template: 'checksums.txt'
 snapshot:
@@ -50,6 +47,7 @@ dockers:
       - "--platform=linux/amd64"
     extra_files:
       - LICENSE
+      - deployment/config/config.yaml
   - id: void-arm
     ids:
       -  void
@@ -76,6 +74,7 @@ dockers:
       - "--platform=linux/arm64"
     extra_files:
       - LICENSE
+      - deployment/config/config.yaml
 release:
   prerelease: auto
 
