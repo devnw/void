@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: void-container
-        image: ghcr.io/devnw/void:v0.0.1-beta6
+        image: ghcr.io/devnw/void:v0.0.1-beta7
         ports:
         - containerPort: 53
         resources:
@@ -33,7 +33,7 @@ spec:
   selector:
     app: void
   ports:
-    - protocol: TCP
+    - protocol: UDP
       port: 53
       targetPort: 53
   type: LoadBalancer

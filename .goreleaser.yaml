@@ -50,7 +50,6 @@ dockers:
       - "--platform=linux/amd64"
     extra_files:
       - LICENSE
-      - deployment/config/config.yaml
   - id: void-arm
     ids:
       -  void
@@ -58,10 +57,10 @@ dockers:
     goarch: arm64
     dockerfile: deployment/docker/Dockerfile
     image_templates:
-      - "ghcr.io/devnw/void:{{ .ShortCommit }}"
-      - "ghcr.io/devnw/void:v{{ .Major }}"
-      - "ghcr.io/devnw/void:{{ .Tag }}"
-      - "ghcr.io/devnw/void:latest"
+      - "ghcr.io/devnw/void:{{ .ShortCommit }}-arm"
+      - "ghcr.io/devnw/void:v{{ .Major }}-arm"
+      - "ghcr.io/devnw/void:{{ .Tag }}-arm"
+      - "ghcr.io/devnw/void:latest-arm"
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -77,7 +76,6 @@ dockers:
       - "--platform=linux/arm64"
     extra_files:
       - LICENSE
-      - deployment/config/config.yaml
 release:
   prerelease: auto
 
