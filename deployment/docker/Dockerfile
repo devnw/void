@@ -1,6 +1,10 @@
 FROM alpine:latest
 
-COPY void /usr/bin/void
+RUN mkdir /etc/void
+
+COPY void /bin/void
+RUN chmod +x /bin/void
+
 COPY deployment/config/config.yaml /etc/void/config.yaml
 
-ENTRYPOINT [ "/usr/bin/void" ]
+ENTRYPOINT [ "/bin/void" ]
