@@ -3,24 +3,30 @@ set -e
 
 configure()
 {
-    systemctl enable void.service
+	# Set DNSStubListener=no in /etc/systemd/resolved.conf
+	sed -i 's/#DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf
 
-    systemctl daemon-reload
+	# Restart the systemd-resolved service
+	systemctl restart systemd-resolved
 
-    systemctl start void.service
+	systemctl enable void.service
+	
+	systemctl daemon-reload
+	
+	systemctl start void.service
 }
 
 case $1 in
-    configure)
-        configure
-        ;;
+	configure)
+		configure
+		;;
 
-    abort-upgrade)
-        ;;
+	abort-upgrade)
+		;;
 
-    abort-remove)
-        ;;
+	abort-remove)
+		;;
 
-    abort-deconfigure)
-        ;;
+	abort-deconfigure)
+		;;
 esac

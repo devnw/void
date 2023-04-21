@@ -1,9 +1,8 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
-  name: void-deployment
+  name: void-daemonset
 spec:
-  replicas: 3
   selector:
     matchLabels:
       app: void
@@ -12,43 +11,19 @@ spec:
       labels:
         app: void
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: void-container
-        image: ghcr.io/devnw/void:v0.0.10-beta2
+        image: ghcr.io/devnw/void:latest
         ports:
         - containerPort: 53
-        resources:
-          limits:
-            cpu: 500m
-          requests:
-            cpu: 250m
-
----
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: void-loadbalancer
-spec:
-  selector:
-    app: void
-  ports:
-    - protocol: UDP
-      port: 53
-      targetPort: 53
-  type: LoadBalancer
-
----
-
-apiVersion: autoscaling/v1
-kind: HorizontalPodAutoscaler
-metadata:
-  name: void-autoscaler
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: void-deployment
-  minReplicas: 3
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 80
+          protocol: UDP
+        volumeMounts:
+        - name: void-storage
+          mountPath: /etc/void
+  volumes:
+  - name: void-storage
+    hostPath:
+      path: /etc/void
+      type: DirectoryOrCreate
