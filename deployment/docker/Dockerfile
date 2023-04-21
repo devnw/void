@@ -1,10 +1,9 @@
 FROM alpine:latest
 
 RUN mkdir /etc/void
+RUN apk --update add --no-cache ca-certificates
 
 COPY void /bin/void
-RUN chmod +x /bin/void
+COPY config.yaml /etc/void/config.yaml
 
-COPY deployment/config/config.yaml /etc/void/config.yaml
-
-ENTRYPOINT [ "/bin/void" ]
+CMD /bin/void

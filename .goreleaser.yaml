@@ -5,6 +5,8 @@ before:
 builds:
   - id: void 
     binary: void 
+    env:
+      - CGO_ENABLED=0
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
