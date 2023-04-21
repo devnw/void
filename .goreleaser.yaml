@@ -48,33 +48,6 @@ dockers:
     extra_files:
       - LICENSE
       - deployment/config/config.yaml
-  - id: void-arm
-    ids:
-      -  void
-    goos: linux
-    goarch: arm64
-    dockerfile: deployment/docker/Dockerfile
-    image_templates:
-      - "ghcr.io/devnw/void:{{ .ShortCommit }}-arm"
-      - "ghcr.io/devnw/void:v{{ .Major }}-arm"
-      - "ghcr.io/devnw/void:{{ .Tag }}-arm"
-      - "ghcr.io/devnw/void:latest-arm"
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title=Void DNS Sink Hole"
-      - "--label=org.opencontainers.image.description=Void is a DNS sink hole and local DNS resolver"
-      - "--label=org.opencontainers.image.url=https://avoid.dev"
-      - "--label=org.opencontainers.image.authors=info@avoid.dev"
-      - "--label=org.opencontainers.image.source=https://github.com/devnw/void"
-      - "--label=org.opencontainers.image.documentation=https://avoid.dev"
-      - "--label=org.opencontainers.image.licenses=Apache 2.0"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--platform=linux/arm64"
-    extra_files:
-      - LICENSE
-      - deployment/config/config.yaml
 release:
   prerelease: auto
 
