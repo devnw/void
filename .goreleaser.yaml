@@ -62,6 +62,8 @@ nfpms:
     - void 
   formats:
     - deb
+    - apk
+    - rpm
   bindir: /usr/bin
   contents:
     - src: ./deployment/config/config.yaml
