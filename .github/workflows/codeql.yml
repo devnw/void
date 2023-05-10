@@ -1,0 +1,16 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ "main" ]
+  schedule:
+    - cron: '36 19 * * 0'
+
+jobs:
+  lint-build-test:
+    name: Scan
+    uses: devnw/workflows/.github/workflows/codeql.yml@main
+    secrets: inherit # pragma: allowlist secret
