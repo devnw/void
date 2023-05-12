@@ -9,7 +9,7 @@ require (
 	go.atomizer.io/stream v1.0.7
 	go.devnw.com/ttl v1.1.2
 	go.structs.dev/gen v1.0.1
-	go.uber.org/zap v1.21.0
+	go.uber.org/zap v1.24.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
