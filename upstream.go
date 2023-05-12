@@ -248,6 +248,13 @@ func (u *Upstream) Intercept(
 			)
 		}
 
+		u.logger.Debugw(
+			"sent response",
+			"category", UPSTREAM,
+			"server", u.String(),
+			"record", req.String(),
+		)
+
 		return
 	}
 }
