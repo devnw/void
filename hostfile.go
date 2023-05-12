@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
+	"runtime/debug"
 	"strings"
 	"time"
 
 	stream "go.atomizer.io/stream"
-	"go.devnw.com/event"
 )
 
 type Hosts []*Host
@@ -73,14 +72,14 @@ const columns = 2
 // ReadHosts reads host files from the provided directories.
 func ReadHosts(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	tpe Type,
 	path string,
 ) Hosts {
 	var hosts Hosts
 
 	count := 0
-	bodies := ReadFiles(ctx, pub, ReadDirectory(ctx, pub, path))
+	bodies := ReadFiles(ctx, logger, ReadDirectory(ctx, logger, path))
 	for {
 		select {
 		case <-ctx.Done():
@@ -90,7 +89,7 @@ func ReadHosts(
 				return hosts
 			}
 
-			hosts = append(hosts, Parse(ctx, pub, tpe, body)...)
+			hosts = append(hosts, Parse(ctx, logger, tpe, body)...)
 			count++
 		}
 	}
@@ -98,7 +97,7 @@ func ReadHosts(
 
 func Parse(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	tpe Type,
 	body io.ReadCloser,
 ) Hosts {
@@ -106,24 +105,22 @@ func Parse(
 	defer func() {
 		r := recover()
 		if r != nil {
-			pub.ErrorFunc(ctx, func() error {
-				return &Error{
-					Msg:   "error parsing hosts file",
-					Inner: fmt.Errorf("%v", r),
-				}
-			})
+			logger.Errorw(
+				"panic",
+				"error", r,
+				"stack", debug.Stack(),
+			)
 		}
 	}()
 
 	data, err := io.ReadAll(body)
 	body.Close()
 	if err != nil {
-		pub.ErrorFunc(ctx, func() error {
-			return &Error{
-				Msg:   "failed to read host file",
-				Inner: err,
-			}
-		})
+		logger.Errorw(
+			"failed to read host file body",
+			"type", tpe,
+			"error", err,
+		)
 		return nil
 	}
 

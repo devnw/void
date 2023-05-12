@@ -4,22 +4,16 @@ import (
 	"context"
 
 	"github.com/miekg/dns"
-	"go.devnw.com/event"
 )
 
 // TODO: Should I have a local regex resolver?
 
 func LocalResolver(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	records ...*Record,
 ) (*Local, error) {
-	err := checkNil(ctx, pub)
-	if err != nil {
-		return nil, err
-	}
-
-	m, err := NewMatcher(ctx, pub, records...)
+	m, err := NewMatcher(ctx, logger, records...)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +21,7 @@ func LocalResolver(
 	return &Local{
 		Matcher: m,
 		ctx:     ctx,
-		pub:     pub,
+		logger:  logger,
 	}, nil
 }
 
@@ -37,8 +31,8 @@ func LocalResolver(
 // for local DNS records.
 type Local struct {
 	*Matcher
-	ctx context.Context
-	pub *event.Publisher
+	ctx    context.Context
+	logger Logger
 }
 
 // Intercept implements the stream.InterceptFunc which
@@ -71,26 +65,23 @@ func (l *Local) Intercept(
 
 	err := req.Answer(req.r)
 	if err != nil {
-		l.pub.ErrorFunc(ctx, func() error {
-			return Error{
-				Category: LOCAL,
-				Server:   "local-resolver",
-				Msg:      "failed to answer request",
-				Inner:    err,
-				Record:   req.String(),
-			}
-		})
+		l.logger.Errorw(
+			"failed to answer request",
+			"server", "local-resolver",
+			"category", LOCAL,
+			"error", err,
+			"record", req.String(),
+		)
 	}
 
-	l.pub.EventFunc(ctx, func() event.Event {
-		return &Event{
-			Msg:      "answered using local resolver",
-			Name:     req.r.Question[0].Name,
-			Type:     dns.Type(req.r.Question[0].Qtype),
-			Category: LOCAL,
-			Server:   "local-resolver",
-			Record:   record,
-		}
-	})
+	l.logger.Debugw(
+		"answered request",
+		"server", "local-resolver",
+		"category", LOCAL,
+		"name", req.r.Question[0].Name,
+		"type", dns.Type(req.r.Question[0].Qtype),
+		"record", record,
+	)
+
 	return nil, false
 }

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	stream "go.atomizer.io/stream"
-	"go.devnw.com/event"
 	"go.structs.dev/gen"
 )
 
@@ -19,7 +18,7 @@ import (
 // deposits the open file.
 func ReadFiles(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	files <-chan string,
 ) <-chan io.ReadCloser {
 	s := stream.Scaler[string, io.ReadCloser]{
@@ -40,12 +39,10 @@ func ReadFiles(
 
 	out, err := s.Exec(ctx, files)
 	if err != nil {
-		pub.ErrorFunc(ctx, func() error {
-			return &Error{
-				Msg:   "error reading files",
-				Inner: err,
-			}
-		})
+		logger.Errorw(
+			"error reading files",
+			"error", err,
+		)
 	}
 
 	return out
@@ -55,7 +52,7 @@ func ReadFiles(
 // providing a channel of file paths.
 func ReadDirectory(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	dir string,
 	exts ...string,
 ) <-chan string {
@@ -66,12 +63,11 @@ func ReadDirectory(
 
 		files, err := os.ReadDir(dir)
 		if err != nil {
-			pub.ErrorFunc(ctx, func() error {
-				return &Error{
-					Msg:   "error reading directory",
-					Inner: err,
-				}
-			})
+			logger.Errorw(
+				"error reading directory",
+				"dir", dir,
+				"error", err,
+			)
 
 			return
 		}
@@ -81,12 +77,12 @@ func ReadDirectory(
 			if !file.IsDir() {
 				i, err := file.Info()
 				if err != nil {
-					pub.ErrorFunc(ctx, func() error {
-						return &Error{
-							Msg:   "error getting file info",
-							Inner: err,
-						}
-					})
+					logger.Errorw(
+						"error reading file info",
+						"dir", dir,
+						"file", file.Name(),
+						"error", err,
+					)
 
 					continue
 				}
@@ -119,7 +115,7 @@ func ReadDirectory(
 					ctx,
 					ReadDirectory(
 						ctx,
-						pub,
+						logger,
 						path.Join(
 							dir,
 							d.Name(),

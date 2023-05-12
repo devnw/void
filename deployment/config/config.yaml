@@ -70,16 +70,19 @@
 # Logger configures the log location and log rotation settings.
 #
 # Uses configuration from https://github.com/natefinch/lumberjack/tree/v2.0
-logger:
-  filename: "/var/log/void/void.log"
-  maxage: 30
-  # maxsize: 100 # MB
-  # maxbackups: 10
-  # localtime: false
-  compress: true
+logger: 
+    # Path to log file or :stdout: for stdout
+    # Leave empty to log to stderr
+    filename: "/var/log/void/void.log"
+    level: "error" # debug, info, warn, error, fatal
+    format: "json" # or "console"
+    maxage: 30
+    maxsize: 100 # MB
+    maxbackups: 10
+    localtime: true
+    compress: true
 
 verbose: false
-
 
 dns:
   #port: 53 # default

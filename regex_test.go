@@ -4,8 +4,6 @@ import (
 	"context"
 	"testing"
 	"time"
-
-	"go.devnw.com/event"
 )
 
 // Steven Black Block List: https://github.com/StevenBlack/hosts
@@ -87,10 +85,9 @@ func Test_Match(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			pub := event.NewPublisher(ctx)
-			defer pub.Close()
+			logger := &NOOPLogger{}
 
-			r, err := Match(ctx, pub, test.regex)
+			r, err := Match(ctx, logger, test.regex)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -120,10 +117,9 @@ func Benchmark_Match(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pub := event.NewPublisher(ctx)
-	defer pub.Close()
+	logger := &NOOPLogger{}
 
-	r, err := Match(ctx, pub, regex)
+	r, err := Match(ctx, logger, regex)
 	if err != nil {
 		b.Errorf("unexpected error: %v", err)
 	}

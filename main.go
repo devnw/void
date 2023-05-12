@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -16,10 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.atomizer.io/stream"
-	"go.devnw.com/alog"
-	"go.devnw.com/event"
 	"go.devnw.com/ttl"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // DEFAULTTTL defines the default ttl for records that either do not
@@ -36,8 +31,14 @@ func init() {
 func main() {
 	var err error
 	defer func() {
+		r := recover()
+		if r != nil {
+			err = errors.Join(fmt.Errorf("panic: %v", r), err)
+		}
+
 		if err != nil {
-			log.Fatal(err)
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -54,42 +55,33 @@ func main() {
 //nolint:funlen // this contains the CLI flags
 func exec(cmd *cobra.Command, _ []string) {
 	ctx := cmd.Context()
-
-	pub := event.NewPublisher(ctx)
-
-	logConfig := &lumberjack.Logger{}
-	err := viper.UnmarshalKey("logger", logConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	logger, err := configLogger(ctx, logConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	logger.Errorc(ctx, pub.ReadErrors(0).Interface())
-
-	if viper.GetBool("verbose") {
-		logger.Printc(ctx, pub.ReadEvents(0).Interface())
-	}
+	logger := configLogger().Sugar()
 
 	var localSrcs Sources
-	err = viper.UnmarshalKey("dns.local", &localSrcs)
+	err := viper.UnmarshalKey("dns.local", &localSrcs)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalw(
+			"failed to unmarshal local sources",
+			"error", err,
+		)
 	}
 
 	var allowSrcs Sources
 	err = viper.UnmarshalKey("dns.allow", &allowSrcs)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalw(
+			"failed to unmarshal allow sources",
+			"error", err,
+		)
 	}
 
 	var blockSrcs Sources
 	err = viper.UnmarshalKey("dns.block", &blockSrcs)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalw(
+			"failed to unmarshal block sources",
+			"error", err,
+		)
 	}
 
 	port := uint16(viper.GetUint("dns.port"))
@@ -99,11 +91,14 @@ func exec(cmd *cobra.Command, _ []string) {
 	if cacheDir != "" {
 		err := os.MkdirAll(cacheDir, 0o755)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatalw(
+				"failed to create cache directory",
+				"error", err,
+			)
 		}
 	}
 
-	i := &Initializer[*Request, *Request]{pub}
+	i := &Initializer[*Request, *Request]{logger}
 
 	server := &dns.Server{
 		Addr: ":" + strconv.Itoa(int(port)),
@@ -112,18 +107,25 @@ func exec(cmd *cobra.Command, _ []string) {
 
 	//	client := &dns.Client{}
 
-	handler, requests := Convert(ctx, pub, true)
+	handler, requests := Convert(
+		ctx,
+		logger,
+		true,
+	)
 
 	// Register the handler into the dns server
 	dns.HandleFunc(".", handler)
 
 	upstream, err := Up(
 		ctx,
-		pub,
+		logger,
 		upstreams...,
 	)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalw(
+			"failed to initialize upstreams",
+			"error", err,
+		)
 	}
 
 	up := make([]chan<- *Request, 0, len(upstream))
@@ -142,23 +144,32 @@ func exec(cmd *cobra.Command, _ []string) {
 
 	cache := &Cache{
 		ctx,
-		pub,
+		logger,
 		ttl.NewCache[string, *dns.Msg](ctx, time.Minute, false),
 	}
 
-	local, err := LocalResolver(ctx, pub, localSrcs.Records(ctx, pub, cacheDir)...)
+	local, err := LocalResolver(ctx, logger, localSrcs.Records(ctx, logger, cacheDir)...)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalw(
+			"failed to create local resolver",
+			"error", err,
+		)
 	}
 
-	allow, err := AllowResolver(ctx, pub, upStreamFan, allowSrcs.Records(ctx, pub, cacheDir)...)
+	allow, err := AllowResolver(ctx, logger, upStreamFan, allowSrcs.Records(ctx, logger, cacheDir)...)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalw(
+			"failed to create allow resolver",
+			"error", err,
+		)
 	}
 
-	block, err := BlockResolver(ctx, pub, blockSrcs.Records(ctx, pub, cacheDir)...)
+	block, err := BlockResolver(ctx, logger, blockSrcs.Records(ctx, logger, cacheDir)...)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalw(
+			"failed to create block resolver",
+			"error", err,
+		)
 	}
 
 	go stream.Pipe( // Upstream FanOut
@@ -182,36 +193,29 @@ func exec(cmd *cobra.Command, _ []string) {
 		),
 		upStreamFan,
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	pub.EventFunc(ctx, func() event.Event {
-		return &Event{
-			Msg: fmt.Sprintf(
-				"void listening on port %v; upstream [%s]",
-				port,
-				strings.Join(upstreams, ", "),
-			),
-		}
-	})
+	logger.Infow(
+		"dns service initialized",
+		"port", port,
+		"upstream", upstreams,
+	)
 
 	go func() {
 		<-ctx.Done()
 		err := server.Shutdown()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "error shutting down server: %v\n", err)
+			logger.Errorw("failed to gracefully shutdown server", "error", err)
 		}
 	}()
 
 	err = server.ListenAndServe()
 	if err != nil {
-		log.Fatal(err)
+		logger.Errorw("failed to start server", "error", err)
 	}
 }
 
 type Initializer[T, U any] struct {
-	pub *event.Publisher
+	logger Logger
 }
 
 func (i *Initializer[T, U]) Scale(
@@ -227,41 +231,11 @@ func (i *Initializer[T, U]) Scale(
 
 	out, err := s.Exec(ctx, in)
 	if err != nil {
-		i.pub.ErrorFunc(ctx, func() error {
-			return err
-		})
+		i.logger.Errorw(
+			"error executing scaler",
+			"error", err,
+		)
 	}
 
 	return out
-}
-
-func configLogger(
-	ctx context.Context, jack *lumberjack.Logger,
-) (alog.Logger, error) {
-	eOut := io.Writer(os.Stderr)
-	iOut := io.Writer(os.Stdout)
-	if len(jack.Filename) > 0 && jack.Filename != ":stdout:" {
-		eOut = jack
-		iOut = jack
-	}
-
-	return alog.New(
-		ctx,
-		"",
-		alog.DEFAULTTIMEFORMAT,
-		time.UTC,
-		0,
-		[]alog.Destination{
-			{
-				Types:  alog.INFO | alog.DEBUG,
-				Format: alog.JSON,
-				Writer: iOut,
-			},
-			{
-				Types:  alog.ERROR | alog.CRIT | alog.FATAL,
-				Format: alog.JSON,
-				Writer: eOut,
-			},
-		}...,
-	)
 }

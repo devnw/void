@@ -9,14 +9,13 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"go.devnw.com/event"
 	"go.devnw.com/ttl"
 )
 
 type Cache struct {
-	ctx   context.Context
-	pub   *event.Publisher
-	cache *ttl.Cache[string, *dns.Msg]
+	ctx    context.Context
+	logger Logger
+	cache  *ttl.Cache[string, *dns.Msg]
 }
 
 // Intercept is the cache intercept func which attempts to first pull
@@ -31,15 +30,12 @@ func (c *Cache) Intercept(
 	if len(req.r.Question) == 0 {
 		err := req.Block()
 		if err != nil {
-			c.pub.ErrorFunc(ctx, func() error {
-				return Error{
-					Category: CACHE,
-					Server:   "cache",
-					Msg:      "failed to answer request",
-					Inner:    err,
-					Record:   req.String(),
-				}
-			})
+			c.logger.Errorw(
+				"invalid question",
+				"category", CACHE,
+				"request", req.String(),
+				"error", err,
+			)
 		}
 	}
 
@@ -47,11 +43,11 @@ func (c *Cache) Intercept(
 	if !ok || r == nil {
 		// Add hook for final response to cache
 		req.w = &interceptor{
-			ctx:   c.ctx,
-			cache: c.cache,
-			pub:   c.pub,
-			req:   req,
-			next:  req.w.WriteMsg, // TODO: Determine if this is the correct pattern
+			ctx:    c.ctx,
+			cache:  c.cache,
+			logger: c.logger,
+			req:    req,
+			next:   req.w.WriteMsg, // TODO: Determine if this is the correct pattern
 		}
 
 		return req, true
@@ -59,15 +55,12 @@ func (c *Cache) Intercept(
 
 	err := req.Answer(r.SetReply(req.r))
 	if err != nil {
-		c.pub.ErrorFunc(ctx, func() error {
-			return Error{
-				Category: CACHE,
-				Server:   "cache",
-				Msg:      "failed to answer request",
-				Inner:    err,
-				Record:   req.String(),
-			}
-		})
+		c.logger.Errorw(
+			"failed to set reply",
+			"category", CACHE,
+			"request", req.String(),
+			"error", err,
+		)
 	}
 
 	return req, false
@@ -77,12 +70,12 @@ func (c *Cache) Intercept(
 // for future queries so that they are not re-requesting an updated
 // IP for an address that has already been queried.
 type interceptor struct {
-	ctx   context.Context
-	cache *ttl.Cache[string, *dns.Msg]
-	pub   *event.Publisher
-	req   *Request
-	next  func(*dns.Msg) error
-	once  sync.Once
+	ctx    context.Context
+	cache  *ttl.Cache[string, *dns.Msg]
+	logger Logger
+	req    *Request
+	next   func(*dns.Msg) error
+	once   sync.Once
 }
 
 func (i *interceptor) WriteMsg(res *dns.Msg) (err error) {
@@ -99,13 +92,12 @@ func (i *interceptor) WriteMsg(res *dns.Msg) (err error) {
 			return
 		}
 
-		i.pub.EventFunc(i.ctx, func() event.Event {
-			return &CacheEvent{
-				Method: WRITE,
-				Record: i.req.r.Question[0].Name,
-				TTL:    ttl,
-			}
-		})
+		i.logger.Debugw(
+			"cache",
+			"method", WRITE,
+			"record", i.req.r.Question[0].Name,
+			"ttl", ttl,
+		)
 	})
 
 	if err != nil {

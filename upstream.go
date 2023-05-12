@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"go.devnw.com/event"
 )
 
 // TODO: Add range validation for numbers in both ipv4 and ipv6
@@ -87,10 +86,10 @@ func TLSConfig(caCert []byte) (*tls.Config, error) {
 // by the address. The address should follow the format:.
 func Up(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	addresses ...string,
 ) ([]*Upstream, error) {
-	err := checkNil(ctx, pub)
+	err := checkNil(ctx, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +136,7 @@ func Up(
 			proto:     proto,
 			address:   net.ParseIP(matches[2]),
 			port:      uint16(port),
-			pub:       pub,
+			logger:    logger,
 			reconnect: time.Minute,
 			client: &dns.Client{
 				Net:       string(proto),
@@ -176,7 +175,7 @@ type Upstream struct {
 
 	// Time before reconnecting the client
 	reconnect time.Duration
-	pub       *event.Publisher
+	logger    Logger
 }
 
 func (u *Upstream) String() string {
@@ -228,29 +227,25 @@ func (u *Upstream) Intercept(
 		//	}
 		//}
 		if err != nil {
-			u.pub.ErrorFunc(ctx, func() error {
-				return Error{
-					Category: UPSTREAM,
-					Server:   u.String(),
-					Msg:      "failed to exchange request",
-					Inner:    err,
-					Record:   req.String(),
-				}
-			})
+			u.logger.Errorw(
+				"failed to exchange request",
+				"category", UPSTREAM,
+				"server", u.String(),
+				"error", err,
+				"record", req.String(),
+			)
 			return
 		}
 
 		err = req.w.WriteMsg(resp)
 		if err != nil {
-			u.pub.ErrorFunc(ctx, func() error {
-				return Error{
-					Category: UPSTREAM,
-					Server:   u.String(),
-					Msg:      "failed to write response",
-					Inner:    err,
-					Record:   req.String(),
-				}
-			})
+			u.logger.Errorw(
+				"failed to write response",
+				"category", UPSTREAM,
+				"server", u.String(),
+				"error", err,
+				"record", req.String(),
+			)
 		}
 
 		return

@@ -1,19 +1,5 @@
 package main
 
-import (
-	gen "go.structs.dev/gen"
-)
-
-// Config defines the configuration options available for void.
-type Config struct {
-	Port     int                     `json:"listen_port"`
-	TTL      int                     `json:"ttl"`
-	Local    gen.Map[string, Record] `json:"local_records"`
-	Allow    gen.Map[string, Record] `json:"allow_records"`
-	Deny     gen.Map[string, Record] `json:"deny_records"`
-	CacheDir string                  `json:"cache_dir"`
-}
-
 // Type indicates the type of a record to ensure proper analysis.
 type Type string
 

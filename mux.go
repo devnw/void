@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"go.devnw.com/event"
 )
 
 // HandleFunc is a type alias for the handler function
@@ -17,7 +16,7 @@ type HandleFunc func(dns.ResponseWriter, *dns.Msg)
 // read-only channel of requests to be pushed down the pipeline.
 func Convert(
 	pCtx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	metrics bool,
 ) (HandleFunc, <-chan *Request) {
 	out := make(chan *Request)
@@ -33,11 +32,11 @@ func Convert(
 		var writer Writer = w
 		if metrics {
 			writer = &metricWriter{
-				ctx:   ctx,
-				pub:   pub,
-				req:   req,
-				start: time.Now(),
-				next:  w.WriteMsg,
+				ctx:    ctx,
+				logger: logger,
+				req:    req,
+				start:  time.Now(),
+				next:   w.WriteMsg,
 			}
 		}
 
@@ -61,22 +60,24 @@ func Convert(
 }
 
 type metricWriter struct {
-	ctx   context.Context
-	pub   *event.Publisher
-	req   *dns.Msg
-	start time.Time
-	next  func(*dns.Msg) error
+	ctx    context.Context
+	logger Logger
+	req    *dns.Msg
+	start  time.Time
+	next   func(*dns.Msg) error
 }
 
 func (m *metricWriter) WriteMsg(res *dns.Msg) error {
 	defer func() {
-		m.pub.EventFunc(m.ctx, func() event.Event {
-			return &Metric{
-				Domain:   m.req.Question[0].Name,
-				Duration: time.Since(m.start),
-			}
-		})
+		m.logger.Debugw(
+			"wrote response",
+			"duration", time.Since(m.start),
+			"name", res.Question[0].Name,
+			"type", dns.Type(res.Question[0].Qtype),
+			"answers", res.Answer,
+		)
 	}()
+
 	return m.next(res)
 }
 

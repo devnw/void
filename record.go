@@ -12,15 +12,14 @@ import (
 	"time"
 
 	"go.atomizer.io/stream"
-	"go.devnw.com/event"
 )
 
 func NewMatcher(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	records ...*Record,
 ) (*Matcher, error) {
-	err := checkNil(ctx, pub)
+	err := checkNil(ctx, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +38,7 @@ func NewMatcher(
 
 	var regexMatcher *Regex
 	if len(regex) > 0 {
-		regexMatcher, err = Match(ctx, pub, regex...)
+		regexMatcher, err = Match(ctx, logger, regex...)
 		if err != nil {
 			return nil, err
 		}
@@ -47,7 +46,7 @@ func NewMatcher(
 
 	return &Matcher{
 		ctx:     ctx,
-		pub:     pub,
+		logger:  logger,
 		records: directs,
 		regex:   regexMatcher,
 	}, nil
@@ -55,7 +54,7 @@ func NewMatcher(
 
 type Matcher struct {
 	ctx       context.Context
-	pub       *event.Publisher
+	logger    Logger
 	records   map[string]*Record
 	recordsMu sync.RWMutex
 	regex     *Regex
@@ -178,7 +177,7 @@ func (r *Record) UnmarshalJSON(data []byte) error {
 // and returns a slice of records.
 func Records(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	paths ...string,
 ) []Record {
 	var records []Record
@@ -187,12 +186,12 @@ func Records(
 	for _, path := range paths {
 		go stream.Pipe(
 			ctx,
-			ReadDirectory(ctx, pub, path),
+			ReadDirectory(ctx, logger, path),
 			files,
 		)
 	}
 
-	bodies := ReadFiles(ctx, pub, files)
+	bodies := ReadFiles(ctx, logger, files)
 	for body := range bodies {
 		data, err := io.ReadAll(body)
 		body.Close()

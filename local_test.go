@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/miekg/dns"
-	"go.devnw.com/event"
 )
 
 func Question(t *testing.T, domain string, qtype uint16) *dns.Msg {
@@ -81,9 +80,9 @@ func Test_Local_Intercept(t *testing.T) {
 			ctx, cancel := context.WithCancel(pctx)
 			defer cancel()
 
-			pub := event.NewPublisher(ctx)
+			logger := &NOOPLogger{}
 
-			local, err := LocalResolver(ctx, pub, test.records...)
+			local, err := LocalResolver(ctx, logger, test.records...)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}

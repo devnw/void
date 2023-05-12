@@ -4,20 +4,19 @@ import (
 	"context"
 
 	"github.com/miekg/dns"
-	"go.devnw.com/event"
 )
 
 func BlockResolver(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	records ...*Record,
 ) (*Block, error) {
-	err := checkNil(ctx, pub)
+	err := checkNil(ctx, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	m, err := NewMatcher(ctx, pub, records...)
+	m, err := NewMatcher(ctx, logger, records...)
 	if err != nil {
 		return nil, err
 	}
@@ -25,14 +24,14 @@ func BlockResolver(
 	return &Block{
 		Matcher: m,
 		ctx:     ctx,
-		pub:     pub,
+		logger:  logger,
 	}, nil
 }
 
 type Block struct {
 	*Matcher
-	ctx context.Context
-	pub *event.Publisher
+	ctx    context.Context
+	logger Logger
 }
 
 func (b *Block) Intercept(
@@ -49,22 +48,26 @@ func (b *Block) Intercept(
 	// Matched a blocked record
 	err := req.Block()
 	if err != nil {
-		b.pub.ErrorFunc(ctx, func() error {
-			return NewErr(req, err, "failed to block request")
-		})
+		b.logger.Errorw(
+			"failed to block",
+			"category", BLOCK,
+			"name", req.r.Question[0].Name,
+			"type", dns.Type(req.r.Question[0].Qtype),
+			"record", record,
+			"client", req.client,
+			"server", req.server,
+		)
 	}
 
-	b.pub.EventFunc(ctx, func() event.Event {
-		return &Event{
-			Msg:      "query found in block list",
-			Name:     req.r.Question[0].Name,
-			Type:     dns.Type(req.r.Question[0].Qtype),
-			Category: BLOCK,
-			Record:   record,
-			Server:   req.server,
-			Client:   req.client,
-		}
-	})
+	b.logger.Infow(
+		"matched",
+		"category", BLOCK,
+		"name", req.r.Question[0].Name,
+		"type", dns.Type(req.r.Question[0].Qtype),
+		"record", record,
+		"client", req.client,
+		"server", req.server,
+	)
 
 	return nil, false
 }

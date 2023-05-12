@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"go.devnw.com/event"
 )
 
 type Source struct {
@@ -96,12 +94,12 @@ func get(
 }
 
 func (s *Source) Records(
-	ctx context.Context, pub *event.Publisher, cacheDir string,
+	ctx context.Context, logger Logger, cacheDir string,
 ) ([]*Record, error) {
 	records := make([]*Record, 0)
 
 	if strings.HasPrefix(s.Path, "http") {
-		r, err := s.Remote(ctx, pub, cacheDir)
+		r, err := s.Remote(ctx, logger, cacheDir)
 		if err != nil {
 			return nil, err
 		}
@@ -110,7 +108,7 @@ func (s *Source) Records(
 		return records, nil
 	}
 
-	r, err := s.Local(ctx, pub)
+	r, err := s.Local(ctx, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +119,7 @@ func (s *Source) Records(
 
 func (s *Source) Local(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 ) ([]*Record, error) {
 	srcs := []*Source{s}
 
@@ -138,31 +136,26 @@ func (s *Source) Local(
 	for _, src := range srcs {
 		f, err := os.Open(src.Path)
 		if err != nil {
-			pub.ErrorFunc(ctx, func() error {
-				return &Error{
-					Msg:   "failed to open local source",
-					Inner: err,
-				}
-			})
+			logger.Errorw(
+				"failed to open source",
+				"source", src.Path,
+				"error", err,
+			)
 			continue
 		}
 
 		defer f.Close()
-		entries := Parse(ctx, pub, src.Format, f).Records(
+		entries := Parse(ctx, logger, src.Format, f).Records(
 			src.Path,
 			src.Category,
 			src.Tags...,
 		)
 
-		pub.EventFunc(ctx, func() event.Event {
-			return &Event{
-				Msg: fmt.Sprintf(
-					"loaded %d entries from %s",
-					len(entries),
-					src.Path,
-				),
-			}
-		})
+		logger.Infow(
+			"local source loaded",
+			"entries", len(entries),
+			"source", src.Path,
+		)
 
 		records = append(records, entries...)
 	}
@@ -171,7 +164,7 @@ func (s *Source) Local(
 }
 
 func (s *Source) Remote(
-	ctx context.Context, pub *event.Publisher, cacheDir string,
+	ctx context.Context, logger Logger, cacheDir string,
 ) ([]*Record, error) {
 	srcs := []*Source{s}
 
@@ -189,30 +182,25 @@ func (s *Source) Remote(
 	for _, src := range srcs {
 		body, err := get(ctx, src.Path, cacheDir)
 		if err != nil {
-			pub.ErrorFunc(ctx, func() error {
-				return &Error{
-					Msg:   "failed to get remote source",
-					Inner: err,
-				}
-			})
+			logger.Errorw(
+				"failed to get remote source",
+				"source", src.Path,
+				"error", err,
+			)
 			continue
 		}
 
-		entries := Parse(ctx, pub, src.Format, body).Records(
+		entries := Parse(ctx, logger, src.Format, body).Records(
 			src.Path,
 			src.Category,
 			src.Tags...,
 		)
 
-		pub.EventFunc(ctx, func() event.Event {
-			return &Event{
-				Msg: fmt.Sprintf(
-					"loaded %d entries from %s",
-					len(entries),
-					src.Path,
-				),
-			}
-		})
+		logger.Infow(
+			"remote source loaded",
+			"entries", len(entries),
+			"source", src.Path,
+		)
 
 		records = append(records, entries...)
 	}
@@ -251,13 +239,13 @@ type Sources []Source
 
 func (s Sources) Records(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	cacheDir string,
 ) []*Record {
 	records := make([]*Record, 0)
 
 	for _, src := range s {
-		r, err := src.Records(ctx, pub, cacheDir)
+		r, err := src.Records(ctx, logger, cacheDir)
 		if err != nil {
 			log.Println(err)
 			continue

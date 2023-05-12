@@ -2,23 +2,21 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"regexp"
+	"runtime/debug"
 	"strings"
-
-	"go.devnw.com/event"
 )
 
 func ReadRegex(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	path string,
 ) []*regexp.Regexp {
 	var regex []*regexp.Regexp
 
 	count := 0
-	bodies := ReadFiles(ctx, pub, ReadDirectory(ctx, pub, path, ".regex"))
+	bodies := ReadFiles(ctx, logger, ReadDirectory(ctx, logger, path, ".regex"))
 	for {
 		select {
 		case <-ctx.Done():
@@ -28,7 +26,7 @@ func ReadRegex(
 				return regex
 			}
 
-			regex = append(regex, parseRegexFile(ctx, pub, body)...)
+			regex = append(regex, parseRegexFile(ctx, logger, body)...)
 			count++
 		}
 	}
@@ -36,31 +34,28 @@ func ReadRegex(
 
 func parseRegexFile(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	body io.ReadCloser,
 ) []*regexp.Regexp {
 	regex := []*regexp.Regexp{}
 	defer func() {
 		r := recover()
 		if r != nil {
-			pub.ErrorFunc(ctx, func() error {
-				return &Error{
-					Msg:   "error parsing regex file",
-					Inner: fmt.Errorf("%s", r),
-				}
-			})
+			logger.Errorw(
+				"panic",
+				"error", r,
+				"stack", debug.Stack(),
+			)
 		}
 	}()
 
 	data, err := io.ReadAll(body)
 	body.Close()
 	if err != nil {
-		pub.ErrorFunc(ctx, func() error {
-			return &Error{
-				Msg:   "failed to read regex file",
-				Inner: err,
-			}
-		})
+		logger.Errorw(
+			"failed to read regex file body",
+			"error", err,
+		)
 		return nil
 	}
 
@@ -87,14 +82,11 @@ func parseRegexFile(
 			var r *regexp.Regexp
 			r, err = regexp.Compile(line)
 			if err != nil {
-				pub.ErrorFunc(ctx, func() error {
-					return &Error{
-						Msg: fmt.Sprintf(
-							"failed to compile regex %s", line,
-						),
-						Inner: err,
-					}
-				})
+				logger.Errorw(
+					"failed to compile regex",
+					"regex", line,
+					"error", err,
+				)
 				continue
 			}
 

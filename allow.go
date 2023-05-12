@@ -4,21 +4,20 @@ import (
 	"context"
 
 	"github.com/miekg/dns"
-	"go.devnw.com/event"
 )
 
 func AllowResolver(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	upstream chan<- *Request,
 	records ...*Record,
 ) (*Allow, error) {
-	err := checkNil(ctx, pub)
+	err := checkNil(ctx, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	m, err := NewMatcher(ctx, pub, records...)
+	m, err := NewMatcher(ctx, logger, records...)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +25,7 @@ func AllowResolver(
 	return &Allow{
 		Matcher:  m,
 		ctx:      ctx,
-		pub:      pub,
+		logger:   logger,
 		upstream: upstream,
 	}, nil
 }
@@ -34,7 +33,7 @@ func AllowResolver(
 type Allow struct {
 	*Matcher
 	ctx      context.Context
-	pub      *event.Publisher
+	logger   Logger
 	upstream chan<- *Request
 }
 
@@ -54,15 +53,13 @@ func (a *Allow) Intercept(
 	case <-a.ctx.Done():
 	case <-ctx.Done():
 	case a.upstream <- req:
-		a.pub.EventFunc(ctx, func() event.Event {
-			return &Event{
-				Msg:      "query found in allow list",
-				Name:     req.r.Question[0].Name,
-				Type:     dns.Type(req.r.Question[0].Qtype),
-				Category: ALLOW,
-				Record:   record,
-			}
-		})
+		a.logger.Debugw(
+			"matched",
+			"category", ALLOW,
+			"name", req.r.Question[0].Name,
+			"type", dns.Type(req.r.Question[0].Qtype),
+			"record", record,
+		)
 	}
 
 	return nil, false

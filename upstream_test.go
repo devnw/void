@@ -4,8 +4,6 @@ import (
 	"context"
 	"net"
 	"testing"
-
-	"go.devnw.com/event"
 )
 
 var (
@@ -181,9 +179,9 @@ func Test_Up(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			pub := event.NewPublisher(ctx)
+			logger := &NOOPLogger{}
 
-			upstreams, err := Up(ctx, pub, test.address)
+			upstreams, err := Up(ctx, logger, test.address)
 			if err != nil {
 				if test.error {
 					return

@@ -8,12 +8,11 @@ import (
 	"time"
 
 	stream "go.atomizer.io/stream"
-	"go.devnw.com/event"
 )
 
 func Match(
 	ctx context.Context,
-	pub *event.Publisher,
+	logger Logger,
 	records ...*Record,
 ) (*Regex, error) {
 	requests := make(chan matcher)
@@ -31,24 +30,22 @@ func Match(
 		if record.Type == WILDCARD {
 			exp, err = Wildcard(record.Pattern)
 			if err != nil {
-				pub.ErrorFunc(ctx, func() error {
-					return &Error{
-						Msg:   "error building wildcard matching regex",
-						Inner: fmt.Errorf("%s: %s", record.Pattern, err),
-					}
-				})
+				logger.Errorw(
+					"failed to compile wildcard",
+					"pattern", record.Pattern,
+					"error", err,
+				)
 
 				continue
 			}
 		} else {
 			exp, err = regexp.Compile(record.Pattern)
 			if err != nil {
-				pub.ErrorFunc(ctx, func() error {
-					return &Error{
-						Msg:   "error compiling regex",
-						Inner: fmt.Errorf("%s: %s", record.Pattern, err),
-					}
-				})
+				logger.Errorw(
+					"failed to compile regex",
+					"pattern", record.Pattern,
+					"error", err,
+				)
 
 				continue
 			}
@@ -69,12 +66,11 @@ func Match(
 
 		_, err = s.Exec(ctx, in)
 		if err != nil {
-			pub.ErrorFunc(ctx, func() error {
-				return &Error{
-					Msg:   "error initializing regex matching",
-					Inner: fmt.Errorf("%s: %s", record.Pattern, err),
-				}
-			})
+			logger.Errorw(
+				"failed to setup regex",
+				"pattern", record.Pattern,
+				"error", err,
+			)
 		}
 	}
 
