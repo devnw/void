@@ -85,6 +85,10 @@ logger:
 verbose: false
 
 dns:
+  #addr: 127.0.0.1
+  #proto: udp # udp,udp4,udp6,tcp,tcp4,tcp6,tcp-tls,tcp-tls4,tcp-tls6
+  #cert: /etc/void/cert.pem
+  #key: /etc/void/key.pem
   #port: 53 # default
   #upstream: [ # default
   #  "tcp-tls://1.1.1.1:853",
@@ -104,3 +108,9 @@ dns:
     #  format: regex
   allow:
   block:
+
+# Support for timeseries metrics
+#influxdb:
+#  api:
+#    addr: "http://127.0.0.1:8086"
+#    token: "<token>"

@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"time"
 
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/miekg/dns"
 )
 
@@ -68,6 +71,25 @@ func (b *Block) Intercept(
 		"client", req.client,
 		"server", req.server,
 	)
+
+	w, ok := (ctx.Value("influxdb.writer")).(api.WriteAPI)
+	if !ok {
+		b.logger.Errorw(
+			"failed to get influxdb writer",
+			"category", BLOCK,
+			"record", req.String(),
+		)
+	}
+
+	w.WritePoint(influxdb2.NewPointWithMeasurement("block").
+		AddField("server", req.server).
+		AddField("client", req.client).
+		AddField("question", req.r.Question[0].Name).
+		AddField("type", dns.Type(req.r.Question[0].Qtype).String()).
+		AddField("class", dns.Class(req.r.Question[0].Qclass).String()).
+		// TODO:
+		// AddField("rtt", rtt).
+		SetTime(time.Now()))
 
 	return nil, false
 }

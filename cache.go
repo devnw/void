@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/miekg/dns"
 	"go.devnw.com/ttl"
 )
@@ -62,6 +64,25 @@ func (c *Cache) Intercept(
 			"error", err,
 		)
 	}
+
+	w, ok := (ctx.Value("influxdb.writer")).(api.WriteAPI)
+	if !ok {
+		c.logger.Errorw(
+			"failed to get influxdb writer",
+			"category", BLOCK,
+			"record", req.String(),
+		)
+	}
+
+	w.WritePoint(influxdb2.NewPointWithMeasurement("cache").
+		AddField("server", req.server).
+		AddField("client", req.client).
+		AddField("question", req.r.Question[0].Name).
+		AddField("type", dns.Type(req.r.Question[0].Qtype).String()).
+		AddField("class", dns.Class(req.r.Question[0].Qclass).String()).
+		// TODO:
+		// AddField("rtt", rtt).
+		SetTime(time.Now()))
 
 	return req, false
 }

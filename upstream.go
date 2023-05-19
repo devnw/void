@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/miekg/dns"
 )
 
@@ -213,8 +215,7 @@ func (u *Upstream) Intercept(
 	default:
 
 		// Send the Request
-		// TODO: Log RTT
-		resp, _, err := u.client.ExchangeContext(ctx, req.r, u.addr())
+		resp, rtt, err := u.client.ExchangeContext(ctx, req.r, u.addr())
 		// If the connection was broken, reconnect and retry
 		//	select {
 		//	case <-ctx.Done():
@@ -254,6 +255,26 @@ func (u *Upstream) Intercept(
 			"server", u.String(),
 			"record", req.String(),
 		)
+
+		w, ok := (ctx.Value("influxdb.writer")).(api.WriteAPI)
+		if !ok {
+			u.logger.Errorw(
+				"failed to get influxdb writer",
+				"category", UPSTREAM,
+				"server", u.String(),
+				"record", req.String(),
+			)
+		}
+
+		w.WritePoint(influxdb2.NewPointWithMeasurement("upstream").
+			AddTag("resolver", u.String()).
+			AddField("src", req.client).
+			AddField("question", req.r.Question[0].Name).
+			AddField("type", dns.Type(req.r.Question[0].Qtype).String()).
+			AddField("class", dns.Class(req.r.Question[0].Qclass).String()).
+			AddField("rtt", rtt).
+			AddField("success", true).
+			SetTime(time.Now()))
 
 		return
 	}

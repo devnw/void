@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -56,6 +57,32 @@ func main() {
 func exec(cmd *cobra.Command, _ []string) {
 	ctx := cmd.Context()
 	logger := configLogger().Sugar()
+
+	// create the influxdb client
+	if viper.IsSet("influxdb") {
+		client := influxdb2.NewClientWithOptions(
+			viper.GetString("influxdb.api.addr"),
+			viper.GetString("influxdb.api.token"),
+			influxdb2.DefaultOptions().SetBatchSize(
+				viper.GetUint("influxdb.api.batch"),
+			),
+		)
+
+		writeAPI := client.WriteAPI(
+			viper.GetString("influxdb.org"),
+			viper.GetString("influxdb.bucket"),
+		)
+
+		defer func() {
+			// Force all unwritten data to be sent
+			writeAPI.Flush()
+
+			// Ensures background processes finishes
+			client.Close()
+		}()
+
+		ctx = context.WithValue(ctx, "influxdb.writer", writeAPI)
+	}
 
 	var localSrcs Sources
 	err := viper.UnmarshalKey("dns.local", &localSrcs)
