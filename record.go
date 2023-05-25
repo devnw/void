@@ -12,11 +12,12 @@ import (
 	"time"
 
 	"go.atomizer.io/stream"
+	"golang.org/x/exp/slog"
 )
 
 func NewMatcher(
 	ctx context.Context,
-	logger Logger,
+	logger *slog.Logger,
 	records ...*Record,
 ) (*Matcher, error) {
 	err := checkNil(ctx, logger)
@@ -54,7 +55,7 @@ func NewMatcher(
 
 type Matcher struct {
 	ctx       context.Context
-	logger    Logger
+	logger    *slog.Logger
 	records   map[string]*Record
 	recordsMu sync.RWMutex
 	regex     *Regex
@@ -177,7 +178,7 @@ func (r *Record) UnmarshalJSON(data []byte) error {
 // and returns a slice of records.
 func Records(
 	ctx context.Context,
-	logger Logger,
+	logger *slog.Logger,
 	paths ...string,
 ) []Record {
 	var records []Record

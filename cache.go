@@ -10,11 +10,12 @@ import (
 
 	"github.com/miekg/dns"
 	"go.devnw.com/ttl"
+	"golang.org/x/exp/slog"
 )
 
 type Cache struct {
 	ctx    context.Context
-	logger Logger
+	logger *slog.Logger
 	cache  *ttl.Cache[string, *dns.Msg]
 }
 
@@ -30,11 +31,16 @@ func (c *Cache) Intercept(
 	if len(req.r.Question) == 0 {
 		err := req.Block()
 		if err != nil {
-			c.logger.Errorw(
-				"invalid question",
-				"category", CACHE,
-				"request", req.String(),
-				"error", err,
+			c.logger.ErrorCtx(ctx, "invalid question",
+				slog.String("category", string(CACHE)),
+				slog.String("error", err.Error()),
+				slog.Group("dns",
+					slog.String("name", req.r.Question[0].Name),
+					slog.String("type", dns.Type(req.r.Question[0].Qtype).String()),
+					slog.String("client", req.client),
+					slog.String("server", req.server),
+					slog.Int("reqId", int(req.r.Id)),
+				),
 			)
 		}
 	}
@@ -50,16 +56,33 @@ func (c *Cache) Intercept(
 			next:   req.w.WriteMsg, // TODO: Determine if this is the correct pattern
 		}
 
+		c.logger.InfoCtx(ctx, "cache miss",
+			slog.String("category", string(CACHE)),
+			slog.Group("dns",
+				slog.String("name", req.r.Question[0].Name),
+				slog.String("type", dns.Type(req.r.Question[0].Qtype).String()),
+				slog.String("client", req.client),
+				slog.String("server", req.server),
+				slog.Int("reqId", int(req.r.Id)),
+			),
+		)
+
 		return req, true
 	}
 
 	err := req.Answer(r.SetReply(req.r))
 	if err != nil {
-		c.logger.Errorw(
-			"failed to set reply",
-			"category", CACHE,
-			"request", req.String(),
-			"error", err,
+		c.logger.ErrorCtx(ctx, "failed to set reply",
+			slog.String("category", string(CACHE)),
+			slog.String("error", err.Error()),
+			slog.Group("dns",
+				slog.String("name", req.r.Question[0].Name),
+				slog.String("type", dns.Type(req.r.Question[0].Qtype).String()),
+				slog.String("client", req.client),
+				slog.String("server", req.server),
+				slog.Int("reqId", int(req.r.Id)),
+				slog.Int("resId", int(r.Id)),
+			),
 		)
 	}
 
@@ -72,7 +95,7 @@ func (c *Cache) Intercept(
 type interceptor struct {
 	ctx    context.Context
 	cache  *ttl.Cache[string, *dns.Msg]
-	logger Logger
+	logger *slog.Logger
 	req    *Request
 	next   func(*dns.Msg) error
 	once   sync.Once
@@ -92,11 +115,17 @@ func (i *interceptor) WriteMsg(res *dns.Msg) (err error) {
 			return
 		}
 
-		i.logger.Debugw(
-			"cache",
-			"method", WRITE,
-			"record", i.req.r.Question[0].Name,
-			"ttl", ttl,
+		i.logger.InfoCtx(i.ctx, "cache hit",
+			slog.String("category", string(CACHE)),
+			slog.Group("dns",
+				slog.String("method", string(WRITE)),
+				slog.String("question", i.req.r.Question[0].Name),
+				slog.String("type", dns.Type(i.req.r.Question[0].Qtype).String()),
+				slog.Duration("ttl", ttl),
+				slog.String("client", i.req.client),
+				slog.String("server", i.req.server),
+				slog.Int("reqId", int(i.req.r.Id)),
+			),
 		)
 	})
 

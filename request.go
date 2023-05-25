@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/miekg/dns"
 )
 
@@ -20,6 +21,7 @@ type Writer interface {
 type Request struct {
 	ctx    context.Context
 	cancel context.CancelFunc
+	id     uuid.UUID
 	w      Writer
 	r      *dns.Msg
 	record string

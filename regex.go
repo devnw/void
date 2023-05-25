@@ -7,12 +7,13 @@ import (
 	"strings"
 	"time"
 
-	stream "go.atomizer.io/stream"
+	"go.atomizer.io/stream"
+	"golang.org/x/exp/slog"
 )
 
 func Match(
 	ctx context.Context,
-	logger Logger,
+	logger *slog.Logger,
 	records ...*Record,
 ) (*Regex, error) {
 	requests := make(chan matcher)
@@ -30,10 +31,16 @@ func Match(
 		if record.Type == WILDCARD {
 			exp, err = Wildcard(record.Pattern)
 			if err != nil {
-				logger.Errorw(
+				logger.ErrorCtx(ctx,
 					"failed to compile wildcard",
-					"pattern", record.Pattern,
-					"error", err,
+					slog.String("error", err.Error()),
+					slog.Group("pattern",
+						slog.String("value", record.Pattern),
+						slog.String("type", string(record.Type)),
+						slog.String("source", record.Source),
+						slog.String("tags", strings.Join(record.Tags, ",")),
+						slog.String("comment", record.Comment),
+					),
 				)
 
 				continue
@@ -41,10 +48,16 @@ func Match(
 		} else {
 			exp, err = regexp.Compile(record.Pattern)
 			if err != nil {
-				logger.Errorw(
+				logger.ErrorCtx(ctx,
 					"failed to compile regex",
-					"pattern", record.Pattern,
-					"error", err,
+					slog.String("error", err.Error()),
+					slog.Group("pattern",
+						slog.String("value", record.Pattern),
+						slog.String("type", string(record.Type)),
+						slog.String("source", record.Source),
+						slog.String("tags", strings.Join(record.Tags, ",")),
+						slog.String("comment", record.Comment),
+					),
 				)
 
 				continue
@@ -66,10 +79,16 @@ func Match(
 
 		_, err = s.Exec(ctx, in)
 		if err != nil {
-			logger.Errorw(
+			logger.ErrorCtx(ctx,
 				"failed to setup regex",
-				"pattern", record.Pattern,
-				"error", err,
+				slog.String("error", err.Error()),
+				slog.Group("pattern",
+					slog.String("value", record.Pattern),
+					slog.String("type", string(record.Type)),
+					slog.String("source", record.Source),
+					slog.String("tags", strings.Join(record.Tags, ",")),
+					slog.String("comment", record.Comment),
+				),
 			)
 		}
 	}

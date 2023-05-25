@@ -1,0 +1,21 @@
+rules:
+  - host:
+      cidr: 192.168.0.0/24
+      ipv4: [192.168.0.1]
+      ipv6: [...]
+    patterns:
+      - regex: ""
+      - direct: ""
+      - wild: ""
+      - range: #ipv4/ipv6
+      - range: # cidr
+    direction: req
+    action: allow | block | alert
+    priority: 10
+    categories:
+    tags:
+    ttl:
+    description:
+    source: 
+
+

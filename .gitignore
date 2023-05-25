@@ -1,5 +1,7 @@
 void
 config.yaml
+root.zone
+tlds.txt
 
 dist/
 

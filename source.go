@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/slog"
 )
 
 type Source struct {
@@ -94,7 +96,7 @@ func get(
 }
 
 func (s *Source) Records(
-	ctx context.Context, logger Logger, cacheDir string,
+	ctx context.Context, logger *slog.Logger, cacheDir string,
 ) ([]*Record, error) {
 	records := make([]*Record, 0)
 
@@ -119,7 +121,7 @@ func (s *Source) Records(
 
 func (s *Source) Local(
 	ctx context.Context,
-	logger Logger,
+	logger *slog.Logger,
 ) ([]*Record, error) {
 	srcs := []*Source{s}
 
@@ -136,10 +138,10 @@ func (s *Source) Local(
 	for _, src := range srcs {
 		f, err := os.Open(src.Path)
 		if err != nil {
-			logger.Errorw(
+			logger.ErrorCtx(ctx,
 				"failed to open source",
-				"source", src.Path,
-				"error", err,
+				slog.String("source", src.Path),
+				slog.String("error", err.Error()),
 			)
 			continue
 		}
@@ -151,10 +153,10 @@ func (s *Source) Local(
 			src.Tags...,
 		)
 
-		logger.Infow(
+		logger.InfoCtx(ctx,
 			"local source loaded",
-			"entries", len(entries),
-			"source", src.Path,
+			slog.Int("entries", len(entries)),
+			slog.String("source", src.Path),
 		)
 
 		records = append(records, entries...)
@@ -164,7 +166,7 @@ func (s *Source) Local(
 }
 
 func (s *Source) Remote(
-	ctx context.Context, logger Logger, cacheDir string,
+	ctx context.Context, logger *slog.Logger, cacheDir string,
 ) ([]*Record, error) {
 	srcs := []*Source{s}
 
@@ -182,10 +184,10 @@ func (s *Source) Remote(
 	for _, src := range srcs {
 		body, err := get(ctx, src.Path, cacheDir)
 		if err != nil {
-			logger.Errorw(
+			logger.ErrorCtx(ctx,
 				"failed to get remote source",
-				"source", src.Path,
-				"error", err,
+				slog.String("source", src.Path),
+				slog.String("error", err.Error()),
 			)
 			continue
 		}
@@ -196,10 +198,10 @@ func (s *Source) Remote(
 			src.Tags...,
 		)
 
-		logger.Infow(
+		logger.InfoCtx(ctx,
 			"remote source loaded",
-			"entries", len(entries),
-			"source", src.Path,
+			slog.Int("entries", len(entries)),
+			slog.String("source", src.Path),
 		)
 
 		records = append(records, entries...)
@@ -239,7 +241,7 @@ type Sources []Source
 
 func (s Sources) Records(
 	ctx context.Context,
-	logger Logger,
+	logger *slog.Logger,
 	cacheDir string,
 ) []*Record {
 	records := make([]*Record, 0)

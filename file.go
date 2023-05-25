@@ -11,6 +11,7 @@ import (
 
 	stream "go.atomizer.io/stream"
 	"go.structs.dev/gen"
+	"golang.org/x/exp/slog"
 )
 
 // ReadFiles reads the files at the path provided
@@ -18,7 +19,7 @@ import (
 // deposits the open file.
 func ReadFiles(
 	ctx context.Context,
-	logger Logger,
+	logger *slog.Logger,
 	files <-chan string,
 ) <-chan io.ReadCloser {
 	s := stream.Scaler[string, io.ReadCloser]{
@@ -39,9 +40,9 @@ func ReadFiles(
 
 	out, err := s.Exec(ctx, files)
 	if err != nil {
-		logger.Errorw(
+		logger.ErrorCtx(ctx,
 			"error reading files",
-			"error", err,
+			slog.String("error", err.Error()),
 		)
 	}
 
@@ -52,7 +53,7 @@ func ReadFiles(
 // providing a channel of file paths.
 func ReadDirectory(
 	ctx context.Context,
-	logger Logger,
+	logger *slog.Logger,
 	dir string,
 	exts ...string,
 ) <-chan string {
@@ -63,7 +64,7 @@ func ReadDirectory(
 
 		files, err := os.ReadDir(dir)
 		if err != nil {
-			logger.Errorw(
+			logger.ErrorCtx(ctx,
 				"error reading directory",
 				"dir", dir,
 				"error", err,
@@ -77,11 +78,11 @@ func ReadDirectory(
 			if !file.IsDir() {
 				i, err := file.Info()
 				if err != nil {
-					logger.Errorw(
+					logger.ErrorCtx(ctx,
 						"error reading file info",
-						"dir", dir,
-						"file", file.Name(),
-						"error", err,
+						slog.String("dir", dir),
+						slog.String("file", file.Name()),
+						slog.String("error", err.Error()),
 					)
 
 					continue

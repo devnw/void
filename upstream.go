@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	"golang.org/x/exp/slog"
 )
 
 // TODO: Add range validation for numbers in both ipv4 and ipv6
@@ -86,7 +87,7 @@ func TLSConfig(caCert []byte) (*tls.Config, error) {
 // by the address. The address should follow the format:.
 func Up(
 	ctx context.Context,
-	logger Logger,
+	logger *slog.Logger,
 	addresses ...string,
 ) ([]*Upstream, error) {
 	err := checkNil(ctx, logger)
@@ -175,7 +176,7 @@ type Upstream struct {
 
 	// Time before reconnecting the client
 	reconnect time.Duration
-	logger    Logger
+	logger    *slog.Logger
 }
 
 func (u *Upstream) String() string {
@@ -227,32 +228,52 @@ func (u *Upstream) Intercept(
 		//	}
 		//}
 		if err != nil {
-			u.logger.Errorw(
+			u.logger.ErrorCtx(ctx,
 				"failed to exchange request",
-				"category", UPSTREAM,
-				"server", u.String(),
-				"error", err,
-				"record", req.String(),
+				slog.String("category", string(UPSTREAM)),
+				slog.String("error", err.Error()),
+				slog.Group("dns",
+					slog.String("upstream-server", u.String()),
+					slog.String("question", req.r.Question[0].Name),
+					slog.String("type", dns.Type(req.r.Question[0].Qtype).String()),
+					slog.String("client", req.client),
+					slog.String("server", req.server),
+					slog.Int("reqId", int(req.r.Id)),
+				),
 			)
 			return
 		}
 
 		err = req.w.WriteMsg(resp)
 		if err != nil {
-			u.logger.Errorw(
+			u.logger.ErrorCtx(ctx,
 				"failed to write response",
-				"category", UPSTREAM,
-				"server", u.String(),
-				"error", err,
-				"record", req.String(),
+				slog.String("category", string(UPSTREAM)),
+				slog.String("error", err.Error()),
+				slog.Group("dns",
+					slog.String("upstream-server", u.String()),
+					slog.String("question", req.r.Question[0].Name),
+					slog.String("type", dns.Type(req.r.Question[0].Qtype).String()),
+					slog.String("client", req.client),
+					slog.String("server", req.server),
+					slog.Int("reqId", int(req.r.Id)),
+					slog.Int("resId", int(resp.Id)),
+				),
 			)
 		}
 
-		u.logger.Debugw(
-			"sent response",
-			"category", UPSTREAM,
-			"server", u.String(),
-			"record", req.String(),
+		u.logger.InfoCtx(ctx,
+			"response",
+			slog.String("category", string(UPSTREAM)),
+			slog.Group("dns",
+				slog.String("upstream-server", u.String()),
+				slog.String("question", req.r.Question[0].Name),
+				slog.String("type", dns.Type(req.r.Question[0].Qtype).String()),
+				slog.String("client", req.client),
+				slog.String("server", req.server),
+				slog.Int("reqId", int(req.r.Id)),
+				slog.Int("resId", int(resp.Id)),
+			),
 		)
 
 		return

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/spf13/viper"
 	"go.atomizer.io/stream"
 	"go.devnw.com/ttl"
+	"golang.org/x/exp/slog"
 )
 
 // DEFAULTTTL defines the default ttl for records that either do not
@@ -55,32 +57,32 @@ func main() {
 //nolint:funlen // this contains the CLI flags
 func exec(cmd *cobra.Command, _ []string) {
 	ctx := cmd.Context()
-	logger := configLogger().Sugar()
+	logger := configLogger() //.Sugar()
 
 	var localSrcs Sources
 	err := viper.UnmarshalKey("dns.local", &localSrcs)
 	if err != nil {
-		logger.Fatalw(
+		logger.ErrorCtx(ctx,
 			"failed to unmarshal local sources",
-			"error", err,
+			slog.String("error", err.Error()),
 		)
 	}
 
 	var allowSrcs Sources
 	err = viper.UnmarshalKey("dns.allow", &allowSrcs)
 	if err != nil {
-		logger.Fatalw(
+		logger.ErrorCtx(ctx,
 			"failed to unmarshal allow sources",
-			"error", err,
+			slog.String("error", err.Error()),
 		)
 	}
 
 	var blockSrcs Sources
 	err = viper.UnmarshalKey("dns.block", &blockSrcs)
 	if err != nil {
-		logger.Fatalw(
+		logger.ErrorCtx(ctx,
 			"failed to unmarshal block sources",
-			"error", err,
+			slog.String("error", err.Error()),
 		)
 	}
 
@@ -91,9 +93,9 @@ func exec(cmd *cobra.Command, _ []string) {
 	if cacheDir != "" {
 		err := os.MkdirAll(cacheDir, 0o755)
 		if err != nil {
-			logger.Fatalw(
+			logger.ErrorCtx(ctx,
 				"failed to create cache directory",
-				"error", err,
+				slog.String("error", err.Error()),
 			)
 		}
 	}
@@ -122,9 +124,9 @@ func exec(cmd *cobra.Command, _ []string) {
 		upstreams...,
 	)
 	if err != nil {
-		logger.Fatalw(
+		logger.ErrorCtx(ctx,
 			"failed to initialize upstreams",
-			"error", err,
+			slog.String("error", err.Error()),
 		)
 	}
 
@@ -150,25 +152,25 @@ func exec(cmd *cobra.Command, _ []string) {
 
 	local, err := LocalResolver(ctx, logger, localSrcs.Records(ctx, logger, cacheDir)...)
 	if err != nil {
-		logger.Fatalw(
+		logger.ErrorCtx(ctx,
 			"failed to create local resolver",
-			"error", err,
+			slog.String("error", err.Error()),
 		)
 	}
 
 	allow, err := AllowResolver(ctx, logger, upStreamFan, allowSrcs.Records(ctx, logger, cacheDir)...)
 	if err != nil {
-		logger.Fatalw(
+		logger.ErrorCtx(ctx,
 			"failed to create allow resolver",
-			"error", err,
+			slog.String("error", err.Error()),
 		)
 	}
 
 	block, err := BlockResolver(ctx, logger, blockSrcs.Records(ctx, logger, cacheDir)...)
 	if err != nil {
-		logger.Fatalw(
+		logger.ErrorCtx(ctx,
 			"failed to create block resolver",
-			"error", err,
+			slog.String("error", err.Error()),
 		)
 	}
 
@@ -194,28 +196,34 @@ func exec(cmd *cobra.Command, _ []string) {
 		upStreamFan,
 	)
 
-	logger.Infow(
+	logger.InfoCtx(ctx,
 		"dns service initialized",
-		"port", port,
-		"upstream", upstreams,
+		slog.Int("port", int(port)),
+		slog.String("upstream", strings.Join(upstreams, ",")),
 	)
 
 	go func() {
 		<-ctx.Done()
 		err := server.Shutdown()
 		if err != nil {
-			logger.Errorw("failed to gracefully shutdown server", "error", err)
+			logger.ErrorCtx(ctx,
+				"failed to gracefully shutdown server",
+				slog.String("error", err.Error()),
+			)
 		}
 	}()
 
 	err = server.ListenAndServe()
 	if err != nil {
-		logger.Errorw("failed to start server", "error", err)
+		logger.ErrorCtx(ctx,
+			"failed to start server",
+			slog.String("error", err.Error()),
+		)
 	}
 }
 
 type Initializer[T, U any] struct {
-	logger Logger
+	logger *slog.Logger
 }
 
 func (i *Initializer[T, U]) Scale(
@@ -231,9 +239,9 @@ func (i *Initializer[T, U]) Scale(
 
 	out, err := s.Exec(ctx, in)
 	if err != nil {
-		i.logger.Errorw(
+		i.logger.ErrorCtx(ctx,
 			"error executing scaler",
-			"error", err,
+			slog.String("error", err.Error()),
 		)
 	}
 

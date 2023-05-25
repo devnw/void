@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+//go:generate mkdir -p testdata/remote
+
 // Steven Black Block List: https://github.com/StevenBlack/hosts
 //go:generate curl https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts -o ./testdata/remote/stevenblack_block.hosts
 

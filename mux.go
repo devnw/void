@@ -2,10 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
+	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/miekg/dns"
+	"golang.org/x/exp/slog"
 )
 
 // HandleFunc is a type alias for the handler function
@@ -16,7 +21,7 @@ type HandleFunc func(dns.ResponseWriter, *dns.Msg)
 // read-only channel of requests to be pushed down the pipeline.
 func Convert(
 	pCtx context.Context,
-	logger Logger,
+	logger *slog.Logger,
 	metrics bool,
 ) (HandleFunc, <-chan *Request) {
 	out := make(chan *Request)
@@ -40,13 +45,38 @@ func Convert(
 			}
 		}
 
+		host, _, err := net.SplitHostPort(w.RemoteAddr().String())
+		if err != nil {
+			logger.ErrorCtx(ctx,
+				"invalid client ip",
+				slog.String("category", "metrics"),
+				slog.Group("dns",
+					slog.String("question", req.Question[0].Name),
+					slog.String("type", dns.Type(req.Question[0].Qtype).String()),
+					slog.String("client", w.RemoteAddr().String()),
+					slog.String("server", w.LocalAddr().String()),
+					slog.Int("reqId", int(req.Id)),
+				),
+				slog.String("error", err.Error()),
+			)
+			return
+		}
+
 		r := &Request{
 			ctx:    ctx,
 			cancel: cancel,
 			w:      writer,
 			r:      req,
-			server: w.LocalAddr().String(),
-			client: w.RemoteAddr().String(),
+			server: fmt.Sprintf(
+				"%s://%s",
+				w.LocalAddr().Network(),
+				w.LocalAddr().String(),
+			),
+			client: fmt.Sprintf(
+				"%s://%s",
+				w.RemoteAddr().Network(),
+				host,
+			),
 		}
 
 		select {
@@ -61,20 +91,51 @@ func Convert(
 
 type metricWriter struct {
 	ctx    context.Context
-	logger Logger
+	logger *slog.Logger
 	req    *dns.Msg
 	start  time.Time
 	next   func(*dns.Msg) error
 }
 
 func (m *metricWriter) WriteMsg(res *dns.Msg) error {
+	if res == nil {
+		return errors.New("nil response")
+	}
+
 	defer func() {
-		m.logger.Debugw(
+		r := recover()
+		if r != nil {
+			m.logger.ErrorCtx(m.ctx,
+				"panic in writer",
+				slog.String("category", "metrics"),
+				slog.Group("dns",
+					slog.String("question", m.req.Question[0].Name),
+					slog.String("type", dns.Type(m.req.Question[0].Qtype).String()),
+					slog.Int("reqId", int(m.req.Id)),
+					slog.Int("resId", int(res.Id)),
+				),
+				slog.String("error", fmt.Sprintf("%v", r)),
+				slog.String("stack", string(debug.Stack())),
+			)
+			return
+		}
+
+		answers := []string{}
+		for _, a := range res.Answer {
+			answers = append(answers, a.String())
+		}
+
+		m.logger.DebugCtx(m.ctx,
 			"wrote response",
-			"duration", time.Since(m.start),
-			"name", res.Question[0].Name,
-			"type", dns.Type(res.Question[0].Qtype),
-			"answers", res.Answer,
+			slog.String("category", "metrics"),
+			slog.Duration("duration", time.Since(m.start)),
+			slog.Group("dns",
+				slog.String("question", m.req.Question[0].Name),
+				slog.String("type", dns.Type(m.req.Question[0].Qtype).String()),
+				slog.String("answers", strings.Join(answers, ", ")),
+				slog.Int("reqId", int(m.req.Id)),
+				slog.Int("resId", int(res.Id)),
+			),
 		)
 	}()
 

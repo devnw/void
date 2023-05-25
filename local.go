@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
+	"strings"
 
 	"github.com/miekg/dns"
+	"golang.org/x/exp/slog"
 )
 
 // TODO: Should I have a local regex resolver?
 
 func LocalResolver(
 	ctx context.Context,
-	logger Logger,
+	logger *slog.Logger,
 	records ...*Record,
 ) (*Local, error) {
 	m, err := NewMatcher(ctx, logger, records...)
@@ -32,7 +34,7 @@ func LocalResolver(
 type Local struct {
 	*Matcher
 	ctx    context.Context
-	logger Logger
+	logger *slog.Logger
 }
 
 // Intercept implements the stream.InterceptFunc which
@@ -65,22 +67,42 @@ func (l *Local) Intercept(
 
 	err := req.Answer(req.r)
 	if err != nil {
-		l.logger.Errorw(
-			"failed to answer request",
-			"server", "local-resolver",
-			"category", LOCAL,
-			"error", err,
-			"record", req.String(),
+		l.logger.ErrorCtx(ctx, "failed to answer request",
+			slog.String("category", string(LOCAL)),
+			slog.String("error", err.Error()),
+			slog.Group("dns",
+				slog.String("name", req.r.Question[0].Name),
+				slog.String("type", dns.Type(req.r.Question[0].Qtype).String()),
+				slog.String("client", req.client),
+				slog.String("server", req.server),
+				slog.Int("reqId", int(req.r.Id)),
+			),
+			slog.Group("pattern",
+				slog.String("value", record.Pattern),
+				slog.String("type", string(record.Type)),
+				slog.String("source", record.Source),
+				slog.String("tags", strings.Join(record.Tags, ",")),
+				slog.String("comment", record.Comment),
+			),
 		)
 	}
 
-	l.logger.Debugw(
-		"answered request",
-		"server", "local-resolver",
-		"category", LOCAL,
-		"name", req.r.Question[0].Name,
-		"type", dns.Type(req.r.Question[0].Qtype),
-		"record", record,
+	l.logger.InfoCtx(ctx, "matched",
+		slog.String("category", string(LOCAL)),
+		slog.Group("dns",
+			slog.String("name", req.r.Question[0].Name),
+			slog.String("type", dns.Type(req.r.Question[0].Qtype).String()),
+			slog.String("client", req.client),
+			slog.String("server", req.server),
+			slog.Int("reqId", int(req.r.Id)),
+		),
+		slog.Group("pattern",
+			slog.String("value", record.Pattern),
+			slog.String("type", string(record.Type)),
+			slog.String("source", record.Source),
+			slog.String("tags", strings.Join(record.Tags, ",")),
+			slog.String("comment", record.Comment),
+		),
 	)
 
 	return nil, false

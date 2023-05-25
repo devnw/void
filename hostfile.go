@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"runtime/debug"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	stream "go.atomizer.io/stream"
+	"golang.org/x/exp/slog"
 )
 
 type Hosts []*Host
@@ -72,7 +74,7 @@ const columns = 2
 // ReadHosts reads host files from the provided directories.
 func ReadHosts(
 	ctx context.Context,
-	logger Logger,
+	logger *slog.Logger,
 	tpe Type,
 	path string,
 ) Hosts {
@@ -97,7 +99,7 @@ func ReadHosts(
 
 func Parse(
 	ctx context.Context,
-	logger Logger,
+	logger *slog.Logger,
 	tpe Type,
 	body io.ReadCloser,
 ) Hosts {
@@ -105,10 +107,10 @@ func Parse(
 	defer func() {
 		r := recover()
 		if r != nil {
-			logger.Errorw(
+			logger.ErrorCtx(ctx,
 				"panic",
-				"error", r,
-				"stack", debug.Stack(),
+				slog.String("error", fmt.Sprintf("%v", r)),
+				slog.String("stack", string(debug.Stack())),
 			)
 		}
 	}()
@@ -116,10 +118,10 @@ func Parse(
 	data, err := io.ReadAll(body)
 	body.Close()
 	if err != nil {
-		logger.Errorw(
+		logger.ErrorCtx(ctx,
 			"failed to read host file body",
-			"type", tpe,
-			"error", err,
+			slog.String("type", tpe.String()),
+			slog.String("error", err.Error()),
 		)
 		return nil
 	}
