@@ -10,8 +10,6 @@ func Test_HostFile_ReadHosts(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger := &NOOPLogger{}
-
 	hosts := ReadHosts(ctx, logger, DIRECT, "testdata/direct/")
 
 	records := hosts.Records("remote", "block", "pihole")

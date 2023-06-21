@@ -10,9 +10,16 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+type logconfig struct {
+	*lumberjack.Logger
+	Level  string `json:"level" yaml:"level"`   // INFO, DEBUG, WARN, ERROR
+	Format string `json:"format" yaml:"format"` // text or json
+	Source bool   `json:"source" yaml:"source"` // include source location
+}
+
 func configLogger() *slog.Logger {
-	jack := &lumberjack.Logger{}
-	err := viper.UnmarshalKey("logger", jack)
+	cfg := &logconfig{Logger: &lumberjack.Logger{}}
+	err := viper.UnmarshalKey("logger", cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -21,73 +28,35 @@ func configLogger() *slog.Logger {
 	// default zap logger. Otherwise, we will use the lumberjack logger
 	// as the output for the zap logger.
 	var w io.Writer = os.Stderr
-	if len(jack.Filename) > 0 {
-		if jack.Filename == ":stdout:" {
+	if len(cfg.Filename) > 0 {
+		if cfg.Filename == ":stdout:" {
 			w = os.Stdout
 		} else {
-			w = jack
+			w = cfg
 		}
 	}
 
-	return slog.New(slog.NewTextHandler(w, nil))
+	level := slog.LevelError
+	switch cfg.Level {
+	case "DEBUG":
+		level = slog.LevelDebug
+	case "INFO":
+		level = slog.LevelInfo
+	case "WARN":
+		level = slog.LevelWarn
+	}
 
-	//level := zapcore.ErrorLevel
-	//if viper.IsSet("logger.level") {
-	//	l, err := zap.ParseAtomicLevel(viper.GetString("logger.level"))
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	//	level = l.Level()
-	//}
+	opts := &slog.HandlerOptions{
+		AddSource: cfg.Source,
+		Level:     level,
+	}
 
-	//ec := zap.NewProductionEncoderConfig()
-	//dev := viper.GetBool("logger.dev")
-	//if dev {
-	//	level = zapcore.DebugLevel
-	//	ec = zap.NewDevelopmentEncoderConfig()
-	//}
+	// If the format is not configured, then we will use the default
+	// text format. Otherwise, we will use the configured format.
+	var handler slog.Handler = slog.NewTextHandler(w, opts)
+	if cfg.Format == "json" {
+		handler = slog.NewJSONHandler(w, opts)
+	}
 
-	//enc := zapcore.NewJSONEncoder(ec)
-	//if viper.GetString("logger.format") == "console" {
-	//	enc = zapcore.NewConsoleEncoder(ec)
-	//}
-
-	//core := zapcore.NewCore(
-	//	enc,
-	//	zapcore.AddSync(w),
-	//	level,
-	//)
-
-	//return zap.New(core, zap.WithCaller(
-	//	viper.GetBool("verbose"),
-	//))
+	return slog.New(handler)
 }
-
-//type Logger = slog.Logger
-
-//type Logger interface {
-//	Debugf(format string, args ...interface{})
-//	Debug(args ...interface{})
-//	Debugw(msg string, keysAndValues ...interface{})
-//
-//	Info(args ...interface{})
-//	Infof(format string, args ...interface{})
-//	Infow(msg string, keysAndValues ...interface{})
-//
-//	Warn(args ...interface{})
-//	Warnf(format string, args ...interface{})
-//	Warnw(msg string, keysAndValues ...interface{})
-//
-//	Errorf(format string, args ...interface{})
-//	Error(args ...interface{})
-//	Errorw(msg string, keysAndValues ...interface{})
-//
-//	Fatal(args ...interface{})
-//	Fatalf(format string, args ...interface{})
-//	Fatalw(msg string, keysAndValues ...interface{})
-//
-//	// https://github.com/uber-go/zap/blob/85c4932ce3ea76b6babe3e0a3d79da10ef295b8d/FAQ.md#whats-dpanic
-//	DPanic(args ...interface{})
-//	DPanicf(format string, args ...interface{})
-//	DPanicw(msg string, keysAndValues ...interface{})
-//}
