@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/miekg/dns"
+	"golang.org/x/exp/slog"
 )
 
 func Question(t *testing.T, domain string, qtype uint16) *dns.Msg {
@@ -80,9 +81,7 @@ func Test_Local_Intercept(t *testing.T) {
 			ctx, cancel := context.WithCancel(pctx)
 			defer cancel()
 
-			logger := &NOOPLogger{}
-
-			local, err := LocalResolver(ctx, logger, test.records...)
+			local, err := LocalResolver(ctx, slog.Default(), test.records...)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}

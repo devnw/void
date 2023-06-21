@@ -4,13 +4,15 @@ import (
 	"context"
 	"testing"
 	"unsafe"
+
+	"golang.org/x/exp/slog"
 )
 
 func Test_HostFile_ReadHosts(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	hosts := ReadHosts(ctx, logger, DIRECT, "testdata/direct/")
+	hosts := ReadHosts(ctx, slog.Default(), DIRECT, "testdata/direct/")
 
 	records := hosts.Records("remote", "block", "pihole")
 	for _, host := range records {

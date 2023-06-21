@@ -4,6 +4,8 @@ import (
 	"context"
 	"net"
 	"testing"
+
+	"golang.org/x/exp/slog"
 )
 
 var (
@@ -179,9 +181,7 @@ func Test_Up(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			logger := &NOOPLogger{}
-
-			upstreams, err := Up(ctx, logger, test.address)
+			upstreams, err := Up(ctx, slog.Default(), test.address)
 			if err != nil {
 				if test.error {
 					return

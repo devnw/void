@@ -3,15 +3,15 @@ package main
 import (
 	"context"
 	"testing"
+
+	"golang.org/x/exp/slog"
 )
 
 func Test_RegexFile_ReadRegex(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger := &NOOPLogger{}
-
-	regex := ReadRegex(ctx, logger, "testdata/remote/")
+	regex := ReadRegex(ctx, slog.Default(), "testdata/remote/")
 
 	for _, reggy := range regex {
 		t.Logf("%+v", reggy)
