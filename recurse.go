@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -34,7 +35,7 @@ func (r *Recursive) Intercept(
 }
 
 type RootZone struct {
-	Records []RootRecord
+	records []RootRecord
 }
 
 type RootRecord struct {
@@ -42,6 +43,32 @@ type RootRecord struct {
 	TTL   time.Duration
 	Class string
 	Value string
+}
+
+func (r *RootZone) Records(ctx context.Context) <-chan RootRecord {
+	out := make(chan RootRecord)
+
+	go func() {
+		defer close(out)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case out <- r.next():
+			}
+		}
+	}()
+
+	return out
+}
+
+func (r *RootZone) next() RootRecord {
+	// Get a random number on the index of the records
+	index := rand.Intn(len(r.records))
+
+	// Get the record at that index
+	return r.records[index]
 }
 
 func loadZoneFile(logger *slog.Logger, filepath string) (*RootZone, error) {
@@ -95,7 +122,7 @@ func loadZoneFile(logger *slog.Logger, filepath string) (*RootZone, error) {
 
 		slog.Debug("adding record", slog.String("record", fmt.Sprintf("%+v", record)))
 
-		zone.Records = append(zone.Records, record)
+		zone.records = append(zone.records, record)
 	}
 
 	if err := scanner.Err(); err != nil {
