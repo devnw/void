@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slog"
@@ -12,7 +13,7 @@ import (
 
 type logconfig struct {
 	*lumberjack.Logger
-	Level  string `json:"level" yaml:"level"`   // INFO, DEBUG, WARN, ERROR
+	Level  string `json:"level" yaml:"level"`   // debug, info, warn, error
 	Format string `json:"format" yaml:"format"` // text or json
 	Source bool   `json:"source" yaml:"source"` // include source location
 }
@@ -37,12 +38,12 @@ func configLogger() *slog.Logger {
 	}
 
 	level := slog.LevelError
-	switch cfg.Level {
-	case "DEBUG":
+	switch strings.ToLower(cfg.Level) {
+	case "debug":
 		level = slog.LevelDebug
-	case "INFO":
+	case "info":
 		level = slog.LevelInfo
-	case "WARN":
+	case "warn":
 		level = slog.LevelWarn
 	}
 

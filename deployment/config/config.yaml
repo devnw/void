@@ -74,8 +74,9 @@ logger:
     # Path to log file or :stdout: for stdout
     # Leave empty to log to stderr
     filename: "/var/log/void/void.log"
-    level: "error" # debug, info, warn, error, fatal
-    format: "json" # or "console"
+    level: "error" # debug, info, warn, error
+    format: "json" # text, json
+    source: false # include source file and line number
     maxage: 30
     maxsize: 100 # MB
     maxbackups: 10
