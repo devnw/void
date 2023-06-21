@@ -66,10 +66,6 @@
 # - tcp-tls://1.0.0.1:853
 #
 # Cache: /etc/void/cache
-
-# Logger configures the log location and log rotation settings.
-#
-# Uses configuration from https://github.com/natefinch/lumberjack/tree/v2.0
 logger: 
     # Path to log file or :stdout: for stdout
     # Leave empty to log to stderr
