@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	"go.atomizer.io/stream"
 	"go.devnw.com/ttl"
 	"golang.org/x/exp/slog"
 )
@@ -23,20 +24,40 @@ import (
 //go:embed named.root
 var namedRoot []byte
 
-type Recursive struct {
-	cache ttl.Cache[string, *dns.Msg]
+func Recursive(
+	ctx context.Context,
+	zonefile string,
+) (stream.InterceptFunc[*Request, *Request], error) {
+	zone, err := loadZoneFile(slog.Default(), zonefile)
+	if err != nil {
+		return nil, err
+	}
+
+	r := &recursive{
+		zones: zone.Records(ctx),
+		cache: ttl.NewCache[string, *dns.Msg](
+			ctx,
+			time.Second*time.Duration(DEFAULTTTL),
+			false,
+		),
+	}
+
+	return r.Intercept, nil
 }
 
-func (r *Recursive) Intercept(
+type recursive struct {
+	zones <-chan RootRecord
+	cache *ttl.Cache[string, *dns.Msg]
+}
+
+func (r *recursive) Intercept(
 	ctx context.Context,
 	req *Request,
 ) (*Request, bool) {
 	return nil, false
 }
 
-type RootZone struct {
-	records []RootRecord
-}
+type RootZone []RootRecord
 
 type RootRecord struct {
 	Name  string
@@ -63,15 +84,15 @@ func (r *RootZone) Records(ctx context.Context) <-chan RootRecord {
 	return out
 }
 
-func (r *RootZone) next() RootRecord {
+func (r RootZone) next() RootRecord {
 	// Get a random number on the index of the records
-	index := rand.Intn(len(r.records))
+	index := rand.Intn(len(r))
 
 	// Get the record at that index
-	return r.records[index]
+	return r[index]
 }
 
-func loadZoneFile(logger *slog.Logger, filepath string) (*RootZone, error) {
+func loadZoneFile(logger *slog.Logger, filepath string) (RootZone, error) {
 	var r io.Reader = bytes.NewReader(namedRoot)
 
 	if filepath != "" {
@@ -88,7 +109,7 @@ func loadZoneFile(logger *slog.Logger, filepath string) (*RootZone, error) {
 		r = file
 	}
 
-	zone := &RootZone{}
+	zone := RootZone{}
 
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
@@ -122,7 +143,7 @@ func loadZoneFile(logger *slog.Logger, filepath string) (*RootZone, error) {
 
 		slog.Debug("adding record", slog.String("record", fmt.Sprintf("%+v", record)))
 
-		zone.records = append(zone.records, record)
+		zone = append(zone, record)
 	}
 
 	if err := scanner.Err(); err != nil {

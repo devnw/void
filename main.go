@@ -57,7 +57,7 @@ func main() {
 //nolint:funlen // this contains the CLI flags
 func exec(cmd *cobra.Command, _ []string) {
 	ctx := cmd.Context()
-	logger := configLogger() //.Sugar()
+	logger := configLogger()
 
 	var localSrcs Sources
 	err := viper.UnmarshalKey("dns.local", &localSrcs)
@@ -147,7 +147,7 @@ func exec(cmd *cobra.Command, _ []string) {
 	cache := &Cache{
 		ctx,
 		logger,
-		ttl.NewCache[string, *dns.Msg](ctx, time.Minute, false),
+		ttl.NewCache[string, *dns.Msg](ctx, time.Second*time.Duration(DEFAULTTTL), false),
 	}
 
 	local, err := LocalResolver(ctx, logger, localSrcs.Records(ctx, logger, cacheDir)...)
