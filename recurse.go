@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -40,14 +41,19 @@ func Recursive(
 			time.Second*time.Duration(DEFAULTTTL),
 			false,
 		),
+		client: &dns.Client{
+			Net:     "udp",
+			Timeout: time.Second * 5,
+		},
 	}
 
 	return r.Intercept, nil
 }
 
 type recursive struct {
-	zones <-chan RootRecord
-	cache *ttl.Cache[string, *dns.Msg]
+	zones  <-chan *RootRecord
+	cache  *ttl.Cache[string, *dns.Msg]
+	client *dns.Client
 }
 
 func (r *recursive) Intercept(
@@ -56,6 +62,130 @@ func (r *recursive) Intercept(
 ) (*Request, bool) {
 	return nil, false
 }
+
+func (r *recursive) resolve(
+	ctx context.Context,
+	question string,
+) (*dns.Msg, error) {
+	msg := &dns.Msg{
+		Question: []dns.Question{
+			{
+				Name:   question,
+				Qtype:  dns.TypeNS,
+				Qclass: dns.ClassINET,
+			},
+		},
+	}
+
+	if question == "" {
+		return rootZ, nil
+
+		//fmt.Println("resolving", msg.Question[0].Name)
+
+		//var zone *RootRecord
+		//for {
+		//	var ok bool
+		//	zone, ok = <-r.zones
+		//	if !ok {
+		//		return nil, fmt.Errorf("no zones left")
+		//	}
+
+		//	fmt.Printf("class: [%s] | value [%v]\n", zone.Class, zone.Value)
+
+		//	if zone.Class == "A" {
+		//		break
+		//	}
+		//}
+
+		//msg.Question[0].Name = "com."
+
+		//resp, _, err := r.client.Exchange(
+		//	msg, net.JoinHostPort(zone.Value, "53"),
+		//)
+		//spew.Config.DisableMethods = true
+		//spew.Dump(resp, err)
+		//fmt.Printf("response %+v, %+v, %v", resp, zone, err)
+		//if err != nil {
+		//	return nil, err
+		//}
+
+		//return resp, nil
+	}
+
+	fmt.Println("recursing", msg.Question[0].Name)
+
+	i := strings.Index(question, ".")
+	if i > 0 {
+		question = question[i+1:]
+	}
+
+	resp, err := r.resolve(ctx, question)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("resolving", msg.Question[0].Name)
+
+	if resp.Authoritative {
+		var ns string
+		for _, rr := range resp.Extra {
+			if rr.Header().Rrtype == dns.TypeA {
+				ns = rr.(*dns.A).A.String()
+				break
+			}
+
+			if rr.Header().Rrtype == dns.TypeAAAA {
+				ns = rr.(*dns.AAAA).AAAA.String()
+				break
+			}
+		}
+
+		fmt.Printf("ns: %s\n", ns)
+
+		if ns == "" {
+			return nil, fmt.Errorf("no NS record found")
+		}
+
+		msg = &dns.Msg{
+			Question: []dns.Question{
+				{
+					Name:   msg.Question[0].Name,
+					Qtype:  dns.TypeA,
+					Qclass: dns.ClassINET,
+				},
+			},
+		}
+
+		resp, _, err := r.client.Exchange(
+			msg, net.JoinHostPort(ns, "53"),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return resp, nil
+	}
+
+	var ns string
+	for _, rr := range resp.Extra {
+		if rr.Header().Rrtype == dns.TypeA {
+			ns = rr.(*dns.A).A.String()
+			break
+		}
+	}
+
+	next, _, err := r.client.Exchange(
+		msg, net.JoinHostPort(ns, "53"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return next, nil
+
+}
+
+var rootZ *dns.Msg = &dns.Msg{}
 
 type RootZone []RootRecord
 
@@ -66,8 +196,8 @@ type RootRecord struct {
 	Value string
 }
 
-func (r *RootZone) Records(ctx context.Context) <-chan RootRecord {
-	out := make(chan RootRecord)
+func (r *RootZone) Records(ctx context.Context) <-chan *RootRecord {
+	out := make(chan *RootRecord)
 
 	go func() {
 		defer close(out)
@@ -84,12 +214,12 @@ func (r *RootZone) Records(ctx context.Context) <-chan RootRecord {
 	return out
 }
 
-func (r RootZone) next() RootRecord {
+func (r RootZone) next() *RootRecord {
 	// Get a random number on the index of the records
 	index := rand.Intn(len(r))
 
 	// Get the record at that index
-	return r[index]
+	return &r[index]
 }
 
 func loadZoneFile(logger *slog.Logger, filepath string) (RootZone, error) {
@@ -132,6 +262,41 @@ func loadZoneFile(logger *slog.Logger, filepath string) (RootZone, error) {
 		if err != nil {
 			slog.Warn("invalid ttl", slog.String("line", line))
 			continue
+		}
+
+		if fields[2] != "NS" {
+			rootZ.Answer = append(rootZ.Answer, &dns.NS{
+				Hdr: dns.RR_Header{
+					Name:   fields[0],
+					Rrtype: dns.TypeNS,
+					Class:  dns.ClassINET,
+					Ttl:    uint32(ttl),
+				},
+			})
+		}
+
+		if fields[2] == "A" {
+			rootZ.Answer = append(rootZ.Answer, &dns.A{
+				Hdr: dns.RR_Header{
+					Name:   fields[0],
+					Rrtype: dns.TypeA,
+					Class:  dns.ClassINET,
+					Ttl:    uint32(ttl),
+				},
+				A: net.ParseIP(fields[3]),
+			})
+		}
+
+		if fields[2] == "AAAA" {
+			rootZ.Answer = append(rootZ.Answer, &dns.AAAA{
+				Hdr: dns.RR_Header{
+					Name:   fields[0],
+					Rrtype: dns.TypeAAAA,
+					Class:  dns.ClassINET,
+					Ttl:    uint32(ttl),
+				},
+				AAAA: net.ParseIP(fields[3]),
+			})
 		}
 
 		record := RootRecord{
