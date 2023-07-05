@@ -41,8 +41,12 @@ func (r *Request) Record() string {
 // Key returns a unique identifier for the request which is an aggregate
 // of the name, type, and class.
 func (r *Request) Key() string {
+	return key(r.r)
+}
+
+func key(msg *dns.Msg) string {
 	// TODO: Add validation?
-	q := r.r.Question[0]
+	q := msg.Question[0]
 
 	return fmt.Sprintf("%s:%d:%d", q.Name, q.Qtype, q.Qclass)
 }

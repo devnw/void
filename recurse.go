@@ -7,13 +7,13 @@ import (
 	_ "embed"
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 	"go.atomizer.io/stream"
 	"go.devnw.com/ttl"
@@ -35,7 +35,7 @@ func Recursive(
 	}
 
 	r := &recursive{
-		zones: zone.Records(ctx),
+		root: zone.Msg(),
 		cache: ttl.NewCache[string, *dns.Msg](
 			ctx,
 			time.Second*time.Duration(DEFAULTTTL),
@@ -51,7 +51,7 @@ func Recursive(
 }
 
 type recursive struct {
-	zones  <-chan *RootRecord
+	root   *dns.Msg
 	cache  *ttl.Cache[string, *dns.Msg]
 	client *dns.Client
 }
@@ -63,63 +63,32 @@ func (r *recursive) Intercept(
 	return nil, false
 }
 
-func (r *recursive) resolve(
+func (r *recursive) authoritative(
 	ctx context.Context,
-	question string,
+	q *dns.Msg,
 ) (*dns.Msg, error) {
 	msg := &dns.Msg{
 		Question: []dns.Question{
 			{
-				Name:   question,
+				Name:   q.Question[0].Name,
 				Qtype:  dns.TypeNS,
 				Qclass: dns.ClassINET,
 			},
 		},
 	}
 
-	if question == "" {
-		return rootZ, nil
-
-		//fmt.Println("resolving", msg.Question[0].Name)
-
-		//var zone *RootRecord
-		//for {
-		//	var ok bool
-		//	zone, ok = <-r.zones
-		//	if !ok {
-		//		return nil, fmt.Errorf("no zones left")
-		//	}
-
-		//	fmt.Printf("class: [%s] | value [%v]\n", zone.Class, zone.Value)
-
-		//	if zone.Class == "A" {
-		//		break
-		//	}
-		//}
-
-		//msg.Question[0].Name = "com."
-
-		//resp, _, err := r.client.Exchange(
-		//	msg, net.JoinHostPort(zone.Value, "53"),
-		//)
-		//spew.Config.DisableMethods = true
-		//spew.Dump(resp, err)
-		//fmt.Printf("response %+v, %+v, %v", resp, zone, err)
-		//if err != nil {
-		//	return nil, err
-		//}
-
-		//return resp, nil
+	if q.Question[0].Name == "" {
+		return r.root, nil
 	}
 
 	fmt.Println("recursing", msg.Question[0].Name)
 
-	i := strings.Index(question, ".")
+	i := strings.Index(q.Question[0].Name, ".")
 	if i > 0 {
-		question = question[i+1:]
+		msg.Question[0].Name = q.Question[0].Name[i+1:]
 	}
 
-	resp, err := r.resolve(ctx, question)
+	resp, err := r.authoritative(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -127,44 +96,11 @@ func (r *recursive) resolve(
 	fmt.Println("resolving", msg.Question[0].Name)
 
 	if resp.Authoritative {
-		var ns string
-		for _, rr := range resp.Extra {
-			if rr.Header().Rrtype == dns.TypeA {
-				ns = rr.(*dns.A).A.String()
-				break
-			}
-
-			if rr.Header().Rrtype == dns.TypeAAAA {
-				ns = rr.(*dns.AAAA).AAAA.String()
-				break
-			}
-		}
-
-		fmt.Printf("ns: %s\n", ns)
-
-		if ns == "" {
-			return nil, fmt.Errorf("no NS record found")
-		}
-
-		msg = &dns.Msg{
-			Question: []dns.Question{
-				{
-					Name:   msg.Question[0].Name,
-					Qtype:  dns.TypeA,
-					Qclass: dns.ClassINET,
-				},
-			},
-		}
-
-		resp, _, err := r.client.Exchange(
-			msg, net.JoinHostPort(ns, "53"),
-		)
-		if err != nil {
-			return nil, err
-		}
-
+		fmt.Println("++++++++++++++++++++++ AUTH")
 		return resp, nil
 	}
+
+	spew.Dump(resp)
 
 	var ns string
 	for _, rr := range resp.Extra {
@@ -174,9 +110,27 @@ func (r *recursive) resolve(
 		}
 	}
 
+	fmt.Printf("ns: %s\n", ns)
+
 	next, _, err := r.client.Exchange(
-		msg, net.JoinHostPort(ns, "53"),
+		q, net.JoinHostPort(ns, "53"),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	k := key(next)
+	if k == "" {
+		return nil, fmt.Errorf("unable to calculate cache key")
+	}
+
+	ttl := time.Second * DEFAULTTTL
+
+	if len(next.Extra) > 0 && next.Extra[0].Header() != nil {
+		ttl = time.Second * time.Duration(next.Extra[0].Header().Ttl)
+	}
+
+	err = r.cache.SetTTL(ctx, k, next, ttl)
 	if err != nil {
 		return nil, err
 	}
@@ -184,8 +138,6 @@ func (r *recursive) resolve(
 	return next, nil
 
 }
-
-var rootZ *dns.Msg = &dns.Msg{}
 
 type RootZone []RootRecord
 
@@ -196,30 +148,50 @@ type RootRecord struct {
 	Value string
 }
 
-func (r *RootZone) Records(ctx context.Context) <-chan *RootRecord {
-	out := make(chan *RootRecord)
+func (r RootZone) Msg() *dns.Msg {
+	msg := &dns.Msg{
+		MsgHdr: dns.MsgHdr{
+			Id:               dns.Id(),
+			RecursionDesired: false,
+		},
+		Question: []dns.Question{
+			{
+				Name:   ".",
+				Qtype:  dns.TypeNS,
+				Qclass: dns.ClassINET,
+			},
+		},
+	}
 
-	go func() {
-		defer close(out)
+	for _, rr := range r {
+		if rr.Class == "AAAA" {
+			msg.Extra = append(msg.Extra, &dns.AAAA{
+				Hdr: dns.RR_Header{
+					Name:   rr.Name,
+					Rrtype: dns.TypeAAAA,
+					Class:  dns.ClassINET,
+					Ttl:    uint32(rr.TTL.Seconds()),
+				},
+				AAAA: net.ParseIP(rr.Value),
+			})
 
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case out <- r.next():
-			}
+			continue
 		}
-	}()
 
-	return out
-}
+		if rr.Class == "A" {
+			msg.Extra = append(msg.Extra, &dns.A{
+				Hdr: dns.RR_Header{
+					Name:   rr.Name,
+					Rrtype: dns.TypeA,
+					Class:  dns.ClassINET,
+					Ttl:    uint32(rr.TTL.Seconds()),
+				},
+				A: net.ParseIP(rr.Value),
+			})
+		}
+	}
 
-func (r RootZone) next() *RootRecord {
-	// Get a random number on the index of the records
-	index := rand.Intn(len(r))
-
-	// Get the record at that index
-	return &r[index]
+	return msg
 }
 
 func loadZoneFile(logger *slog.Logger, filepath string) (RootZone, error) {
@@ -230,7 +202,9 @@ func loadZoneFile(logger *slog.Logger, filepath string) (RootZone, error) {
 
 		file, err := os.Open(filepath)
 		if err != nil {
-			slog.Error("failed to open zone file", slog.String("error", err.Error()))
+			slog.Error(
+				"failed to open zone file", slog.String("error", err.Error()),
+			)
 			return nil, err
 		}
 		defer slog.Debug("zone file loaded", slog.String("path", filepath))
@@ -264,41 +238,6 @@ func loadZoneFile(logger *slog.Logger, filepath string) (RootZone, error) {
 			continue
 		}
 
-		if fields[2] != "NS" {
-			rootZ.Answer = append(rootZ.Answer, &dns.NS{
-				Hdr: dns.RR_Header{
-					Name:   fields[0],
-					Rrtype: dns.TypeNS,
-					Class:  dns.ClassINET,
-					Ttl:    uint32(ttl),
-				},
-			})
-		}
-
-		if fields[2] == "A" {
-			rootZ.Answer = append(rootZ.Answer, &dns.A{
-				Hdr: dns.RR_Header{
-					Name:   fields[0],
-					Rrtype: dns.TypeA,
-					Class:  dns.ClassINET,
-					Ttl:    uint32(ttl),
-				},
-				A: net.ParseIP(fields[3]),
-			})
-		}
-
-		if fields[2] == "AAAA" {
-			rootZ.Answer = append(rootZ.Answer, &dns.AAAA{
-				Hdr: dns.RR_Header{
-					Name:   fields[0],
-					Rrtype: dns.TypeAAAA,
-					Class:  dns.ClassINET,
-					Ttl:    uint32(ttl),
-				},
-				AAAA: net.ParseIP(fields[3]),
-			})
-		}
-
 		record := RootRecord{
 			Name:  fields[0],
 			TTL:   time.Duration(ttl) * time.Second, // Convert to time.Duration
@@ -306,7 +245,10 @@ func loadZoneFile(logger *slog.Logger, filepath string) (RootZone, error) {
 			Value: fields[3],
 		}
 
-		slog.Debug("adding record", slog.String("record", fmt.Sprintf("%+v", record)))
+		slog.Debug(
+			"adding record",
+			slog.String("record", fmt.Sprintf("%+v", record)),
+		)
 
 		zone = append(zone, record)
 	}
