@@ -2,37 +2,39 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"io"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 )
 
 //go:generate curl https://www.internic.net/domain/root.zone -o root.zone
 
-func ParseZone() {
-	zone, err := os.Open("root.zone")
-	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return
-	}
-	defer zone.Close()
+func ParseZone(r io.ReadCloser) *dns.Msg {
+	defer r.Close()
 
 	// Create a new tokenizer
-	t := dns.NewZoneParser(zone, ".", "root.zone")
+	t := dns.NewZoneParser(r, "", "")
 
 	// NOTE: (miekg/dns) Callers should not assume all returned data in an
 	// Resource Record is syntactically correct, e.g. illegal base64 in RRSIGs
 	// will be returned as-is.
 
+	msg := &dns.Msg{}
 	for rr, ok := t.Next(); ok; rr, ok = t.Next() {
 		if t.Err() != nil {
 			fmt.Println("Error parsing file:", t.Err())
-			return
+			return nil
 		}
 
-		spew.Dump(rr)
+		switch rr.(type) {
+		case *dns.A, *dns.AAAA:
+			msg.Extra = append(msg.Extra, rr)
+		case *dns.NS:
+			msg.Ns = append(msg.Ns, rr)
+		}
 	}
+
+	return msg
 }
 
 /*
