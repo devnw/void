@@ -166,4 +166,43 @@ func Test_resolve(t *testing.T) {
 
 	fmt.Printf("Authoritative: %+v\n", auth.Authoritative)
 
+	auth, err = r.exec(ctx, &dns.Msg{
+		Question: []dns.Question{
+			{
+				Name:   "www.example.com.",
+				Qtype:  dns.TypeA,
+				Qclass: dns.ClassINET,
+			},
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	if auth != nil {
+		fmt.Printf("------------------------- AUTH -------------------------\n")
+
+		spew.Dump(auth)
+
+		fmt.Printf("Authoritative: %+v\n", auth.Authoritative)
+	}
+
+	auth, err = r.exec(ctx, &dns.Msg{
+		Question: []dns.Question{
+			{
+				Name:   "go.atomizer.io.",
+				Qtype:  dns.TypeA,
+				Qclass: dns.ClassINET,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Printf("------------------------- AUTH -------------------------\n")
+
+	spew.Dump(auth)
+
+	fmt.Printf("Authoritative: %+v\n", auth.Authoritative)
 }
