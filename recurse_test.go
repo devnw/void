@@ -2,14 +2,14 @@ package main
 
 import (
 	"context"
-	"net"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 	"go.devnw.com/ttl"
-	"golang.org/x/exp/slog"
 )
 
 //func Test_loadZoneFile(t *testing.T) {
@@ -113,17 +113,17 @@ import (
 //}
 
 func Test_resolve(t *testing.T) {
-	name := "test.test.www.benjiv.com."
+	name := "www.benjiv.com."
 	ctx := context.Background()
 
-	zone, err := loadZoneFile(slog.Default(), "")
+	zone, err := os.Open("named.root")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	r := &recursive{
-		root: zone.Msg(),
-		cache: ttl.NewCache[string, *dns.Msg](
+		root: ParseZone(zone),
+		cache: ttl.NewCache[string, []dns.RR](
 			ctx,
 			time.Second*time.Duration(DEFAULTTTL),
 			false,
@@ -134,7 +134,7 @@ func Test_resolve(t *testing.T) {
 		},
 	}
 
-	auth, err := r.authoritative(ctx, &dns.Msg{
+	q := &dns.Msg{
 		Question: []dns.Question{
 			{
 				Name:   name,
@@ -142,32 +142,17 @@ func Test_resolve(t *testing.T) {
 				Qclass: dns.ClassINET,
 			},
 		},
-	})
+	}
+
+	auth, err := r.authoritative(ctx, q)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var ns string
-	for _, rr := range resp.Extra {
-		if rr.Header().Rrtype == dns.TypeA {
-			ns = rr.(*dns.A).A.String()
-			break
-		}
-	}
+	fmt.Printf("------------------------- AUTH -------------------------\n")
 
-	resp, _, err := r.client.Exchange(
-		q, net.JoinHostPort(ns, "53"),
-	)
-	if err != nil {
-		return nil, err
-	}
-}
+	spew.Dump(auth)
 
-func Test_root_msg(t *testing.T) {
-	zones, err := loadZoneFile(slog.Default(), "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	fmt.Printf("Authoritative: %+v\n", auth.Authoritative)
 
-	spew.Dump(zones)
 }

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 	"go.atomizer.io/stream"
 	"go.devnw.com/ttl"
@@ -31,7 +30,7 @@ func Recursive(
 
 	r := &recursive{
 		root: ParseZone(zone),
-		cache: ttl.NewCache[string, *dns.Msg](
+		cache: ttl.NewCache[string, []dns.RR](
 			ctx,
 			time.Second*time.Duration(DEFAULTTTL),
 			false,
@@ -45,9 +44,33 @@ func Recursive(
 	return r.Intercept, nil
 }
 
+func rkey(r dns.RR) string {
+	v := fmt.Sprintf("%s:%d", r.Header().Name, r.Header().Class)
+
+	fmt.Printf("rkey: %s\n", v)
+
+	return v
+}
+
+func qkey(q dns.Question) string {
+	v := fmt.Sprintf("%s:%d", q.Name, q.Qclass)
+
+	fmt.Printf("qkey: %s\n", v)
+
+	return v
+}
+
+func soaKey(ns string, class uint16) string {
+	v := fmt.Sprintf("%s:%d", ns, class)
+
+	fmt.Printf("soaKey: %s\n", v)
+
+	return v
+}
+
 type recursive struct {
 	root   *dns.Msg
-	cache  *ttl.Cache[string, *dns.Msg]
+	cache  *ttl.Cache[string, []dns.RR]
 	client *dns.Client
 }
 
@@ -62,12 +85,16 @@ func (r *recursive) authoritative(
 	ctx context.Context,
 	q *dns.Msg,
 ) (*dns.Msg, error) {
-	msg, ok := r.cache.Get(ctx, key(q))
-	if ok {
-		return msg, nil
+	if q.Question[0].Name == "" {
+		return r.root, nil
 	}
 
-	msg = &dns.Msg{
+	rr, ok := r.cache.Get(ctx, qkey(q.Question[0]))
+	if ok {
+		q.Answer = rr
+	}
+
+	msg := &dns.Msg{
 		Question: []dns.Question{
 			{
 				Name:   q.Question[0].Name,
@@ -75,10 +102,6 @@ func (r *recursive) authoritative(
 				Qclass: dns.ClassINET,
 			},
 		},
-	}
-
-	if q.Question[0].Name == "" {
-		return r.root, nil
 	}
 
 	fmt.Println("recursing", msg.Question[0].Name)
@@ -100,8 +123,6 @@ func (r *recursive) authoritative(
 		return resp, nil
 	}
 
-	spew.Dump(resp)
-
 	var ns string
 	for _, rr := range resp.Extra {
 		if rr.Header().Rrtype == dns.TypeA {
@@ -119,20 +140,27 @@ func (r *recursive) authoritative(
 		return nil, err
 	}
 
-	k := key(next)
-	if k == "" {
-		return nil, fmt.Errorf("unable to calculate cache key")
-	}
-
 	ttl := time.Second * DEFAULTTTL
-
 	if len(next.Extra) > 0 && next.Extra[0].Header() != nil {
 		ttl = time.Second * time.Duration(next.Extra[0].Header().Ttl)
 	}
 
-	err = r.cache.SetTTL(ctx, k, next, ttl)
-	if err != nil {
-		return nil, err
+	answers := map[string][]dns.RR{}
+	for _, rr := range next.Extra {
+		attl := time.Duration(rr.Header().Ttl) * time.Second
+		if attl != ttl {
+			ttl = attl
+		}
+
+		k := rkey(rr)
+
+		answers[k] = append(answers[k], rr)
+	}
+
+	fmt.Printf("ttl: %s\n", ttl)
+
+	for answer, rr := range answers {
+		r.cache.SetTTL(ctx, answer, rr, ttl)
 	}
 
 	return next, nil
