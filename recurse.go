@@ -30,7 +30,7 @@ func Recursive(
 
 	r := &recursive{
 		root: ParseZone(zone),
-		cache: ttl.NewCache[string, []dns.RR](
+		nsCache: ttl.NewCache[string, []dns.RR](
 			ctx,
 			time.Second*time.Duration(DEFAULTTTL),
 			false,
@@ -45,33 +45,24 @@ func Recursive(
 }
 
 func rkey(r dns.RR) string {
-	v := fmt.Sprintf("%s:%d", r.Header().Name, r.Header().Class)
-
-	fmt.Printf("rkey: %s\n", v)
-
+	v := fmt.Sprintf("%s:%d", strings.ToLower(r.Header().Name), r.Header().Class)
 	return v
 }
 
 func qkey(q dns.Question) string {
-	v := fmt.Sprintf("%s:%d", q.Name, q.Qclass)
-
-	fmt.Printf("qkey: %s\n", v)
-
+	v := fmt.Sprintf("%s:%d", strings.ToLower(q.Name), q.Qclass)
 	return v
 }
 
 func soaKey(ns string, class uint16) string {
-	v := fmt.Sprintf("%s:%d", ns, class)
-
-	fmt.Printf("soaKey: %s\n", v)
-
+	v := fmt.Sprintf("%s:%d", strings.ToLower(ns), class)
 	return v
 }
 
 type recursive struct {
-	root   *dns.Msg
-	cache  *ttl.Cache[string, []dns.RR]
-	client *dns.Client
+	root    *dns.Msg
+	nsCache *ttl.Cache[string, []dns.RR]
+	client  *dns.Client
 }
 
 func (r *recursive) Intercept(
@@ -81,7 +72,7 @@ func (r *recursive) Intercept(
 	return nil, false
 }
 
-func (r *recursive) authoritative(
+func (r *recursive) exec(
 	ctx context.Context,
 	q *dns.Msg,
 ) (*dns.Msg, error) {
@@ -89,40 +80,43 @@ func (r *recursive) authoritative(
 		return r.root, nil
 	}
 
-	rr, ok := r.cache.Get(ctx, qkey(q.Question[0]))
-	if ok {
-		q.Answer = rr
+	if q.Question[0].Qtype == dns.TypeNS {
+		k := qkey(q.Question[0])
+		fmt.Printf("checking cache for %s\n", k)
+		rr, ok := r.nsCache.Get(ctx, k)
+		if ok {
+			fmt.Printf("found %s in cache\n", k)
+			q.Extra = rr
+			return q, nil
+		}
 	}
 
-	msg := &dns.Msg{
+	qName := q.Question[0].Name
+	i := strings.Index(qName, ".")
+	if i > 0 {
+		qName = qName[i+1:]
+	}
+
+	resp, err := r.exec(ctx, &dns.Msg{
 		Question: []dns.Question{
 			{
-				Name:   q.Question[0].Name,
+				Name:   qName,
 				Qtype:  dns.TypeNS,
 				Qclass: dns.ClassINET,
 			},
 		},
-	}
-
-	fmt.Println("recursing", msg.Question[0].Name)
-
-	i := strings.Index(q.Question[0].Name, ".")
-	if i > 0 {
-		msg.Question[0].Name = q.Question[0].Name[i+1:]
-	}
-
-	resp, err := r.authoritative(ctx, msg)
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println("resolving", msg.Question[0].Name)
+	fmt.Printf("Resolving: %s\n", qkey(q.Question[0]))
 
 	if resp.Authoritative {
-		fmt.Println("++++++++++++++++++++++ AUTH")
 		return resp, nil
 	}
 
+	// TODO: this should work for any record coming fom the response
 	var ns string
 	for _, rr := range resp.Extra {
 		if rr.Header().Rrtype == dns.TypeA {
@@ -131,8 +125,6 @@ func (r *recursive) authoritative(
 		}
 	}
 
-	fmt.Printf("ns: %s\n", ns)
-
 	next, _, err := r.client.Exchange(
 		q, net.JoinHostPort(ns, "53"),
 	)
@@ -140,28 +132,16 @@ func (r *recursive) authoritative(
 		return nil, err
 	}
 
+	// Cache the NS records
 	ttl := time.Second * DEFAULTTTL
 	if len(next.Extra) > 0 && next.Extra[0].Header() != nil {
 		ttl = time.Second * time.Duration(next.Extra[0].Header().Ttl)
 	}
 
-	answers := map[string][]dns.RR{}
-	for _, rr := range next.Extra {
-		attl := time.Duration(rr.Header().Ttl) * time.Second
-		if attl != ttl {
-			ttl = attl
-		}
+	nsk := qkey(next.Question[0])
 
-		k := rkey(rr)
-
-		answers[k] = append(answers[k], rr)
-	}
-
-	fmt.Printf("ttl: %s\n", ttl)
-
-	for answer, rr := range answers {
-		r.cache.SetTTL(ctx, answer, rr, ttl)
-	}
+	fmt.Printf("Caching: %s\n", nsk)
+	r.nsCache.SetTTL(ctx, nsk, next.Extra, ttl)
 
 	return next, nil
 

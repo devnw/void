@@ -123,7 +123,7 @@ func Test_resolve(t *testing.T) {
 
 	r := &recursive{
 		root: ParseZone(zone),
-		cache: ttl.NewCache[string, []dns.RR](
+		nsCache: ttl.NewCache[string, []dns.RR](
 			ctx,
 			time.Second*time.Duration(DEFAULTTTL),
 			false,
@@ -144,7 +144,18 @@ func Test_resolve(t *testing.T) {
 		},
 	}
 
-	auth, err := r.authoritative(ctx, q)
+	auth, err := r.exec(ctx, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Printf("------------------------- AUTH -------------------------\n")
+
+	spew.Dump(auth)
+
+	fmt.Printf("Authoritative: %+v\n", auth.Authoritative)
+
+	auth, err = r.exec(ctx, q)
 	if err != nil {
 		t.Fatal(err)
 	}
