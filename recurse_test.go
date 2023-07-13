@@ -9,6 +9,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 	"go.devnw.com/ttl"
+	"golang.org/x/exp/slog"
 )
 
 //func Test_loadZoneFile(t *testing.T) {
@@ -120,9 +121,16 @@ func Test_resolve(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelDebug,
+	}))
+
 	r := &recursive{
-		root: ParseZone(zone, true, false),
-		cache: ttl.NewCache[string, *dns.Msg](
+		ctx:    ctx,
+		logger: logger,
+		root:   ParseZone(zone, true, false),
+		nsCache: ttl.NewCache[string, *dns.Msg](
 			ctx,
 			time.Second*time.Duration(DEFAULTTTL),
 			false,
@@ -135,12 +143,10 @@ func Test_resolve(t *testing.T) {
 		ipv6: false,
 	}
 
-	for i := 0; i < 10; i++ {
-		auth, err := r.ns(ctx, name)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		spew.Dump(auth)
+	auth, err := r.ns(ctx, name)
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	spew.Dump(auth)
 }

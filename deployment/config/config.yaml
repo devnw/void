@@ -87,6 +87,10 @@ dns:
   #  "tcp-tls://1.1.1.1:853",
   #  "tcp-tls://1.0.0.1:853",
   #]
+  recursive:
+    enable: false # defaults to false (require upstream)
+    ipv4: true # defaults to true
+    ipv6: false # defaults to false
   local:
     #- path: "/etc/void/local.hosts"
     

@@ -13,6 +13,7 @@ import (
 	"github.com/miekg/dns"
 	"go.atomizer.io/stream"
 	"go.devnw.com/ttl"
+	"golang.org/x/exp/slog"
 )
 
 //go:generate wget -O named.root https://www.internic.net/domain/named.root
@@ -22,6 +23,7 @@ var namedRoot []byte
 
 func Recursive(
 	ctx context.Context,
+	logger *slog.Logger,
 	zonefile string,
 	ipv4, ipv6 bool,
 ) (stream.InterceptFunc[*Request, *Request], error) {
@@ -35,9 +37,10 @@ func Recursive(
 	}
 
 	r := &recursive{
-		ctx:  ctx,
-		root: ParseZone(zone, ipv4, ipv6),
-		cache: ttl.NewCache[string, *dns.Msg](
+		ctx:    ctx,
+		logger: logger,
+		root:   ParseZone(zone, ipv4, ipv6),
+		nsCache: ttl.NewCache[string, *dns.Msg](
 			ctx,
 			time.Second*time.Duration(DEFAULTTTL),
 			false,
@@ -54,12 +57,14 @@ func Recursive(
 }
 
 type recursive struct {
-	ctx    context.Context
-	root   *dns.Msg
-	cache  *ttl.Cache[string, *dns.Msg]
-	client *dns.Client
-	ipv6   bool
-	ipv4   bool
+	ctx       context.Context
+	logger    *slog.Logger
+	root      *dns.Msg
+	nsCache   *ttl.Cache[string, *dns.Msg]
+	addrCache *ttl.Cache[string, *dns.Msg]
+	client    *dns.Client
+	ipv6      bool
+	ipv4      bool
 }
 
 func (r *recursive) Intercept(
@@ -73,13 +78,22 @@ func (r *recursive) ns(
 	ctx context.Context,
 	name string,
 ) (*dns.Msg, error) {
+	r.logger.DebugCtx(ctx, "recursive ns resolution begin",
+		slog.String("name", name))
+
+	defer r.logger.DebugCtx(ctx, "recursive ns resolution end",
+		slog.String("name", name))
+
 	if name == "" || name == "." {
+		r.logger.DebugCtx(ctx, "ns", "name",
+			slog.String("name", name),
+			slog.String("ns", "."))
 		return r.root, nil
 	}
 
-	ns, ok := r.cache.Get(ctx, name)
+	ns, ok := r.nsCache.Get(ctx, name)
 	if ok {
-		fmt.Printf("found %s in cache\n", name)
+		r.logger.DebugCtx(ctx, "ns cache hit", slog.String("name", name))
 		return ns, nil
 	}
 
@@ -125,40 +139,28 @@ func (r *recursive) ns(
 	}
 
 	ttl := DEFAULTTTL
-	for _, rr := range next.Answer {
-		if rr.Header().Rrtype == dns.TypeSOA {
-			ttl = int(rr.Header().Ttl)
-			break
-		}
-
-		if rr.Header().Rrtype == dns.TypeNS {
-			ttl = int(rr.Header().Ttl)
-			break
-		}
+	if len(next.Answer) > 0 {
+		ttl = int(next.Answer[0].Header().Ttl)
 	}
 
 	rrs := make([]dns.RR, 0, len(next.Extra))
 
-	// Remove any A records from the extra section
-	if !r.ipv4 {
-		for _, rr := range next.Extra {
-			if rr.Header().Rrtype != dns.TypeA {
-				rrs = append(rrs, rr)
-			}
-		}
-	}
+	// NOTE: The A, and AAAA records for the specific name server
+	// responses also need to be stored if they're returned in the
+	// extra part of a response as well
 
-	// Remove any AAAA records from the extra section
-	if !r.ipv6 {
-		for _, rr := range next.Extra {
-			if rr.Header().Rrtype != dns.TypeAAAA {
-				rrs = append(rrs, rr)
-			}
+	for _, rr := range next.Extra {
+		if r.ipv4 && rr.Header().Rrtype == dns.TypeA {
+			rrs = append(rrs, rr)
+		}
+
+		if r.ipv6 && rr.Header().Rrtype == dns.TypeAAAA {
+			rrs = append(rrs, rr)
 		}
 	}
 
 	next.Extra = rrs
-	r.cache.SetTTL(ctx, name, next, time.Second*time.Duration(ttl))
+	r.nsCache.SetTTL(ctx, name, next, time.Second*time.Duration(ttl))
 
 	return next, nil
 
