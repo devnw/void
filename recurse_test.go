@@ -112,7 +112,7 @@ import (
 //}
 
 func Test_resolve(t *testing.T) {
-	name := "www.benjiv.com."
+	name := "test.test.www.benjiv.com."
 	ctx := context.Background()
 
 	zone, err := os.Open("named.root")

@@ -94,30 +94,34 @@ func (r *recursive) ns(
 		return nil, err
 	}
 
-	var ip net.IP
-	rr := resp.Extra[rand.Intn(len(resp.Extra))]
-	switch rr := rr.(type) {
-	case *dns.A:
-		ip = rr.A
-	case *dns.AAAA:
-		ip = rr.AAAA
-	default:
-		return nil, fmt.Errorf("unknown type %T", rr)
-	}
+	next := resp
+	if len(resp.Extra) > 0 || !resp.Authoritative {
+		var ip net.IP
+		rr := resp.Extra[rand.Intn(len(resp.Extra))]
+		switch rr := rr.(type) {
+		case *dns.A:
+			ip = rr.A
+		case *dns.AAAA:
+			ip = rr.AAAA
+		default:
+			return nil, fmt.Errorf("unknown type %T", rr)
+		}
 
-	next, _, err := r.client.Exchange(
-		&dns.Msg{
-			Question: []dns.Question{
-				{
-					Name:   name,
-					Qtype:  dns.TypeNS,
-					Qclass: dns.ClassINET,
+		next, _, err = r.client.Exchange(
+			&dns.Msg{
+				Question: []dns.Question{
+					{
+						Name:   name,
+						Qtype:  dns.TypeNS,
+						Qclass: dns.ClassINET,
+					},
 				},
-			},
-		}, net.JoinHostPort(ip.String(), "53"),
-	)
-	if err != nil {
-		return nil, err
+			}, net.JoinHostPort(ip.String(), "53"),
+		)
+		if err != nil {
+			return nil, err
+		}
+
 	}
 
 	ttl := DEFAULTTTL
