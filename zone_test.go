@@ -13,7 +13,7 @@ func Test_ParseZone(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	msg := ParseZone(zone)
+	msg := ParseZone(zone, true, true)
 
 	spew.Dump(msg)
 }

@@ -9,7 +9,7 @@ import (
 
 //go:generate curl https://www.internic.net/domain/root.zone -o root.zone
 
-func ParseZone(r io.ReadCloser) *dns.Msg {
+func ParseZone(r io.ReadCloser, ipv4, ipv6 bool) *dns.Msg {
 	defer r.Close()
 
 	// Create a new tokenizer
@@ -27,8 +27,14 @@ func ParseZone(r io.ReadCloser) *dns.Msg {
 		}
 
 		switch rr.(type) {
-		case *dns.A, *dns.AAAA:
-			msg.Extra = append(msg.Extra, rr)
+		case *dns.A:
+			if ipv4 {
+				msg.Extra = append(msg.Extra, rr)
+			}
+		case *dns.AAAA:
+			if ipv6 {
+				msg.Extra = append(msg.Extra, rr)
+			}
 		case *dns.NS:
 			msg.Ns = append(msg.Ns, rr)
 		}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -122,8 +121,8 @@ func Test_resolve(t *testing.T) {
 	}
 
 	r := &recursive{
-		root: ParseZone(zone),
-		nsCache: ttl.NewCache[string, []dns.RR](
+		root: ParseZone(zone, true, false),
+		cache: ttl.NewCache[string, *dns.Msg](
 			ctx,
 			time.Second*time.Duration(DEFAULTTTL),
 			false,
@@ -132,77 +131,16 @@ func Test_resolve(t *testing.T) {
 			Net:     "udp",
 			Timeout: time.Second * 5,
 		},
+		ipv4: true,
+		ipv6: false,
 	}
 
-	q := &dns.Msg{
-		Question: []dns.Question{
-			{
-				Name:   name,
-				Qtype:  dns.TypeA,
-				Qclass: dns.ClassINET,
-			},
-		},
-	}
-
-	auth, err := r.exec(ctx, q)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fmt.Printf("------------------------- AUTH -------------------------\n")
-
-	spew.Dump(auth)
-
-	fmt.Printf("Authoritative: %+v\n", auth.Authoritative)
-
-	auth, err = r.exec(ctx, q)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fmt.Printf("------------------------- AUTH -------------------------\n")
-
-	spew.Dump(auth)
-
-	fmt.Printf("Authoritative: %+v\n", auth.Authoritative)
-
-	auth, err = r.exec(ctx, &dns.Msg{
-		Question: []dns.Question{
-			{
-				Name:   "www.example.com.",
-				Qtype:  dns.TypeA,
-				Qclass: dns.ClassINET,
-			},
-		},
-	})
-	if err != nil {
-		t.Error(err)
-	}
-
-	if auth != nil {
-		fmt.Printf("------------------------- AUTH -------------------------\n")
+	for i := 0; i < 10; i++ {
+		auth, err := r.ns(ctx, name)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		spew.Dump(auth)
-
-		fmt.Printf("Authoritative: %+v\n", auth.Authoritative)
 	}
-
-	auth, err = r.exec(ctx, &dns.Msg{
-		Question: []dns.Question{
-			{
-				Name:   "go.atomizer.io.",
-				Qtype:  dns.TypeA,
-				Qclass: dns.ClassINET,
-			},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fmt.Printf("------------------------- AUTH -------------------------\n")
-
-	spew.Dump(auth)
-
-	fmt.Printf("Authoritative: %+v\n", auth.Authoritative)
 }

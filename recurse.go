@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 	"go.atomizer.io/stream"
 	"go.devnw.com/ttl"
@@ -24,7 +23,12 @@ var namedRoot []byte
 func Recursive(
 	ctx context.Context,
 	zonefile string,
+	ipv4, ipv6 bool,
 ) (stream.InterceptFunc[*Request, *Request], error) {
+	if !ipv4 && !ipv6 {
+		return nil, fmt.Errorf("must specify at least one IP protocol")
+	}
+
 	zone, err := os.Open("named.root")
 	if err != nil {
 		return nil, err
@@ -32,8 +36,8 @@ func Recursive(
 
 	r := &recursive{
 		ctx:  ctx,
-		root: ParseZone(zone),
-		nsCache: ttl.NewCache[string, []dns.RR](
+		root: ParseZone(zone, ipv4, ipv6),
+		cache: ttl.NewCache[string, *dns.Msg](
 			ctx,
 			time.Second*time.Duration(DEFAULTTTL),
 			false,
@@ -42,35 +46,20 @@ func Recursive(
 			Net:     "udp",
 			Timeout: time.Second * 5,
 		},
+		ipv4: ipv4,
+		ipv6: ipv6,
 	}
 
 	return r.Intercept, nil
 }
 
-func rkey(r dns.RR) string {
-	v := fmt.Sprintf(
-		"%s:%d",
-		strings.ToLower(r.Header().Name),
-		r.Header().Class,
-	)
-	return v
-}
-
-func qkey(q dns.Question) string {
-	v := fmt.Sprintf("%s:%d", strings.ToLower(q.Name), q.Qclass)
-	return v
-}
-
-func soaKey(ns string, class uint16) string {
-	v := fmt.Sprintf("%s:%d", strings.ToLower(ns), class)
-	return v
-}
-
 type recursive struct {
-	ctx     context.Context
-	root    *dns.Msg
-	nsCache *ttl.Cache[string, []dns.RR]
-	client  *dns.Client
+	ctx    context.Context
+	root   *dns.Msg
+	cache  *ttl.Cache[string, *dns.Msg]
+	client *dns.Client
+	ipv6   bool
+	ipv4   bool
 }
 
 func (r *recursive) Intercept(
@@ -80,133 +69,93 @@ func (r *recursive) Intercept(
 	return nil, false
 }
 
-func (r *recursive) exec(
+func (r *recursive) ns(
 	ctx context.Context,
-	q *dns.Msg,
+	name string,
 ) (*dns.Msg, error) {
-	if q.Question[0].Name == "" || q.Question[0].Name == "." {
-		r.cacheRR(r.root.Answer)
-		r.cacheRR(r.root.Ns)
-		r.cacheRR(r.root.Extra)
+	if name == "" || name == "." {
 		return r.root, nil
 	}
 
-	if q.Question[0].Qtype == dns.TypeNS {
-		k := qkey(q.Question[0])
-		fmt.Printf("checking cache for %s\n", k)
-		rr, ok := r.nsCache.Get(ctx, k)
-		if ok {
-			fmt.Printf("found %s in cache\n", k)
-			q.Extra = rr
-			return q, nil
-		}
+	ns, ok := r.cache.Get(ctx, name)
+	if ok {
+		fmt.Printf("found %s in cache\n", name)
+		return ns, nil
 	}
 
-	qName := q.Question[0].Name
+	qName := name
 	i := strings.Index(qName, ".")
 	if i > 0 {
 		qName = qName[i+1:]
 	}
 
-	resp, err := r.exec(ctx, &dns.Msg{
-		Question: []dns.Question{
-			{
-				Name:   qName,
-				Qtype:  dns.TypeNS,
-				Qclass: dns.ClassINET,
-			},
-		},
-	})
+	resp, err := r.ns(ctx, qName)
 	if err != nil {
 		return nil, err
 	}
 
-	if resp.Rcode != dns.RcodeSuccess {
-		return resp, fmt.Errorf("rcode: %s", dns.RcodeToString[resp.Rcode])
-	}
-
-	fmt.Printf("Resolving: %s\n", qkey(q.Question[0]))
-
-	if resp.Authoritative && q.Question[0].Qtype == dns.TypeNS {
-		fmt.Printf("Returning: %s\n", qkey(q.Question[0]))
-		return resp, nil
-	}
-
-	if len(resp.Ns) == 0 {
-		return resp, fmt.Errorf("no NS records")
-	}
-
-	// get random NS ip from cache
-	nsRR := resp.Ns[rand.Intn(len(resp.Ns))]
-	spew.Dump(nsRR)
-
-	ip, ok := r.nsCache.Get(r.ctx, rkey(nsRR))
-	if !ok {
-		fmt.Printf("No IP for %s\n", rkey(nsRR))
-		// resolve NS ip
-		nsMSG, err := r.exec(ctx, &dns.Msg{
-			Question: []dns.Question{
-				{
-					Name:   nsRR.Header().Name,
-					Qtype:  dns.TypeA,
-					Qclass: dns.ClassINET,
-				},
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		spew.Dump(nsMSG)
-
-		if len(nsMSG.Answer) == 0 {
-			return resp, fmt.Errorf("no answer")
-		}
-
-		ip = nsMSG.Answer
-	}
-
-	v := ip[rand.Intn(len(ip))]
-	var srv net.IP
-	switch v.(type) {
+	var ip net.IP
+	rr := resp.Extra[rand.Intn(len(resp.Extra))]
+	switch rr := rr.(type) {
 	case *dns.A:
-		srv = v.(*dns.A).A
+		ip = rr.A
 	case *dns.AAAA:
-		srv = v.(*dns.AAAA).AAAA
-	}
-
-	if srv == nil {
-		return resp, fmt.Errorf("no ip")
+		ip = rr.AAAA
+	default:
+		return nil, fmt.Errorf("unknown type %T", rr)
 	}
 
 	next, _, err := r.client.Exchange(
-		q, net.JoinHostPort(srv.String(), "53"),
+		&dns.Msg{
+			Question: []dns.Question{
+				{
+					Name:   name,
+					Qtype:  dns.TypeNS,
+					Qclass: dns.ClassINET,
+				},
+			},
+		}, net.JoinHostPort(ip.String(), "53"),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	r.cacheRR(next.Answer)
-	r.cacheRR(next.Extra)
+	ttl := DEFAULTTTL
+	for _, rr := range next.Answer {
+		if rr.Header().Rrtype == dns.TypeSOA {
+			ttl = int(rr.Header().Ttl)
+			break
+		}
+
+		if rr.Header().Rrtype == dns.TypeNS {
+			ttl = int(rr.Header().Ttl)
+			break
+		}
+	}
+
+	rrs := make([]dns.RR, 0, len(next.Extra))
+
+	// Remove any A records from the extra section
+	if !r.ipv4 {
+		for _, rr := range next.Extra {
+			if rr.Header().Rrtype != dns.TypeA {
+				rrs = append(rrs, rr)
+			}
+		}
+	}
+
+	// Remove any AAAA records from the extra section
+	if !r.ipv6 {
+		for _, rr := range next.Extra {
+			if rr.Header().Rrtype != dns.TypeAAAA {
+				rrs = append(rrs, rr)
+			}
+		}
+	}
+
+	next.Extra = rrs
+	r.cache.SetTTL(ctx, name, next, time.Second*time.Duration(ttl))
 
 	return next, nil
 
-}
-
-func (r *recursive) cacheRR(records []dns.RR) {
-	dict := make(map[string][]dns.RR)
-	for _, rr := range records {
-		key := rkey(rr)
-
-		if _, ok := dict[key]; !ok {
-			dict[key] = []dns.RR{}
-		}
-
-		dict[key] = append(dict[key], rr)
-	}
-
-	for k, v := range dict {
-		fmt.Printf("Caching: %s | %+v\n", k, v)
-		r.nsCache.Set(r.ctx, k, v)
-	}
 }
