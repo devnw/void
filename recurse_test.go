@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -113,7 +114,7 @@ import (
 //}
 
 func Test_resolve(t *testing.T) {
-	name := "test.test.www.benjiv.com."
+	name := "www.benjiv.com."
 	ctx := context.Background()
 
 	zone, err := os.Open("named.root")
@@ -135,6 +136,11 @@ func Test_resolve(t *testing.T) {
 			time.Second*time.Duration(DEFAULTTTL),
 			false,
 		),
+		addrCache: ttl.NewCache[string, *dns.Msg](
+			ctx,
+			time.Second*time.Duration(DEFAULTTTL),
+			false,
+		),
 		client: &dns.Client{
 			Net:     "udp",
 			Timeout: time.Second * 5,
@@ -149,4 +155,40 @@ func Test_resolve(t *testing.T) {
 	}
 
 	spew.Dump(auth)
+
+	// Pull the SOA record from the authority
+	soa, ok := auth.Ns[0].(*dns.SOA)
+	if !ok {
+		t.Fatal("no SOA record")
+	}
+
+	spew.Dump(soa)
+
+	// Get the IP of the SOA record nameserver
+	ns, err := r.ns(ctx, soa.Ns)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	spew.Dump(ns)
+
+	var ip net.IP
+	ip = auth.Extra[0].(*dns.A).A
+
+	val, _, err := r.client.Exchange(
+		&dns.Msg{
+			Question: []dns.Question{
+				{
+					Name:   name,
+					Qtype:  dns.TypeA,
+					Qclass: dns.ClassINET,
+				},
+			},
+		}, net.JoinHostPort(ip.String(), "53"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	spew.Dump(val)
 }

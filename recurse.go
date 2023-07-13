@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/miekg/dns"
 	"go.atomizer.io/stream"
 	"go.devnw.com/ttl"
@@ -144,18 +145,31 @@ func (r *recursive) ns(
 	}
 
 	rrs := make([]dns.RR, 0, len(next.Extra))
+	nsIPs := map[string]map[uint16]dns.RR{}
 
 	// NOTE: The A, and AAAA records for the specific name server
 	// responses also need to be stored if they're returned in the
 	// extra part of a response as well
 
 	for _, rr := range next.Extra {
+		if nsIPs[rr.Header().Name] == nil {
+			nsIPs[rr.Header().Name] = map[uint16]dns.RR{}
+		}
+
+		nsIPs[rr.Header().Name][rr.Header().Rrtype] = rr
+
 		if r.ipv4 && rr.Header().Rrtype == dns.TypeA {
 			rrs = append(rrs, rr)
 		}
 
 		if r.ipv6 && rr.Header().Rrtype == dns.TypeAAAA {
 			rrs = append(rrs, rr)
+		}
+	}
+
+	for k, v := range nsIPs {
+		for rrk, rr := range v {
+			spew.Dump(k, rrk, rr)
 		}
 	}
 
