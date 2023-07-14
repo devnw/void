@@ -82,26 +82,111 @@ logger:
 verbose: false
 
 dns:
+  enabled: true # defaults to true
+  listeners:
+    - "udp://:53"
+    - "tcp://:53"
+    - "tcp-tls://:853"
+    - "quic://:853"
+  tls:
+    # Path to TLS certificate and key
+    # If empty, Void will generate a self-signed certificate
+    cert: ""
+    key: ""
+    client:
+      # Path to CA certificate
+      # If empty, Void will use the system CA certificate
+      ca: ""
+  # Add support for multiple listeners (udp, tcp, tcp-tls, quic)
   #port: 53 # default
   #upstream: [ # default
   #  "tcp-tls://1.1.1.1:853",
   #  "tcp-tls://1.0.0.1:853",
   #]
-  recursive:
-    enable: false # defaults to false (require upstream)
-    ipv4: true # defaults to true
-    ipv6: false # defaults to false
+  cluster:
+    - "tcp-tls://"
+    - "tcp-tls://"
+    - "tcp-tls://"
+  resolver:
+    recursive:
+      enabled: false # defaults to false (require upstream)
+      ipv4: true # defaults to true
+      ipv6: false # defaults to false
+    #upstream: [ # default
+    #  "tcp-tls://1.1.1.1:853",
+    #  "tcp-tls://1.0.0.1:853",
+    #]
   local:
-    #- path: "/etc/void/local.hosts"
-    
-    #- path: "/etc/void/local.regex"
-    #  format: regex 
-    
-    #- path: "/etc/void/local.wild"
-    #  format: wildcard
-    
-    #- path: "/etc/void/local.lists"
-    #  lists: true
-    #  format: regex
+      enabled: true
+      config:
+        priority: 100 # lower number is higher priority
+        version: "v1.0.0" # version of the block list, locks version
+        update: "daily" # daily, weekly, monthly, yearly, never
+        ota: true # enable over the air updates
+        ota_url: "https://void.void/ota" # url to check for updates
+        verification: "sha256" # sha256, sha512, signature
+        signature: "https://void.void/void.gpg" # url to signature file
+      lists:
+        - path: "/etc/void/local.hosts"
+        
+        - path: "/etc/void/local.regex"
+          format: regex 
+        
+        - path: "/etc/void/local.wild"
+          format: wildcard
+        
+        - path: "/etc/void/local.lists"
+          lists: true
+          format: regex
   allow:
+      enabled: true
+      config:
+        priority: 100 # lower number is higher priority
+        version: "v1.0.0" # version of the block list, locks version
+        update: "daily" # daily, weekly, monthly, yearly, never
+        ota: true # enable over the air updates
+        ota_url: "https://void.void/ota" # url to check for updates
+        verification: "sha256" # sha256, sha512, signature
+        signature: "https://void.void/void.gpg" # url to signature file
+      lists:
+        - path: "/etc/void/allow.hosts"
+        - path: "/etc/void/allow.regex"
+          format: regex
+        - path: "/etc/void/allow.wild"
+          format: wildcard
+          addrs:
+            - "192.168.0.1/24"
+            - "192.168.10.1-200"
+        - path: "/etc/void/allow.lists"
+          lists: true
+          format: regex
   block:
+      enabled: true
+      config:
+        priority: 100 # lower number is higher priority
+        version: "v1.0.0" # version of the block list, locks version
+        update: "daily" # daily, weekly, monthly, yearly, never
+        ota: true # enable over the air updates
+        ota_url: "https://void.void/ota" # url to check for updates
+        verification: "sha256" # sha256, sha512, signature
+        signature: "https://void.void/void.gpg" # url to signature file
+      lists:
+        - path: "/etc/void/block.hosts"
+        - path: "/etc/void/block.regex"
+          format: regex
+        - path: "/etc/void/block.wild"
+          format: wildcard
+        - path: "/etc/void/block.lists"
+          lists: true
+          format: regex
+  plugins:
+    intel:
+      enabled: true
+      config:
+        priority: 100 # lower number is higher priority
+        version: "v1.0.0" # version of the block list, locks version
+        update: "daily" # daily, weekly, monthly, yearly, never
+        ota: true # enable over the air updates
+        ota_url: "https://void.void/ota" # url to check for updates
+        verification: "sha256" # sha256, sha512, signature
+        signature: "https://void.void/void.gpg" # url to signature file

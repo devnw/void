@@ -75,6 +75,10 @@ func (r *recursive) Intercept(
 	return nil, false
 }
 
+func (r *recursive) resolve(ctx context.Context, q *dns.Msg) (*dns.Msg, error) {
+
+}
+
 func (r *recursive) ns(
 	ctx context.Context,
 	name string,
