@@ -111,7 +111,7 @@ dns:
     recursive:
       enabled: false # defaults to false (require upstream)
       ipv4: true # defaults to true
-      ipv6: false # defaults to false
+      ipv6: false # defaults to false, requires the system to be ipv6 routable!!
     #upstream: [ # default
     #  "tcp-tls://1.1.1.1:853",
     #  "tcp-tls://1.0.0.1:853",

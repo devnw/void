@@ -75,8 +75,87 @@ func (r *recursive) Intercept(
 	return nil, false
 }
 
-func (r *recursive) resolve(ctx context.Context, q *dns.Msg) (*dns.Msg, error) {
+func (r *recursive) resolve(
+	ctx context.Context, q *dns.Msg,
+) (*dns.Msg, error) {
+	k := key(q)
+	if msg, ok := r.addrCache.Get(ctx, k); ok {
+		return msg, nil
+	}
 
+	ns, err := r.ns(ctx, q.Question[0].Name)
+	if err != nil {
+		r.logger.ErrorCtx(
+			ctx, "failed to resolve NS",
+			slog.String("name", q.Question[0].Name),
+			slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	if len(ns.Ns) == 0 {
+		if len(ns.Answer) == 0 {
+			return nil, fmt.Errorf("no NS records")
+		}
+
+		q.Answer = append(q.Answer, ns.Answer...)
+		for _, a := range ns.Answer {
+			if a.Header().Rrtype == dns.TypeCNAME {
+				return r.resolve(ctx, &dns.Msg{
+					Question: []dns.Question{
+						{
+							Name:   a.(*dns.CNAME).Target,
+							Qtype:  dns.TypeA,
+							Qclass: dns.ClassINET,
+						},
+					},
+				})
+			}
+		}
+	}
+
+	// Return the NS record if it's what is being asked for.
+	if q.Question[0].Qtype == dns.TypeNS {
+		return ns, nil
+	}
+
+	// Check for an authoritative answer.
+	soa, ok := ns.Ns[0].(*dns.SOA)
+	if !ok {
+		spew.Dump(ns)
+		return nil, fmt.Errorf("no SOA record")
+	}
+
+	nsIP, err := r.resolve(ctx, &dns.Msg{
+		Question: []dns.Question{
+			{
+				Name:   soa.Ns,
+				Qtype:  dns.TypeA,
+				Qclass: dns.ClassINET,
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	spew.Dump(nsIP)
+
+	if len(nsIP.Answer) == 0 {
+		return nil, fmt.Errorf("no answer")
+	}
+
+	naA, ok := nsIP.Answer[rand.Intn(len(nsIP.Answer))].(*dns.A)
+	if !ok {
+		return nil, fmt.Errorf("no A record")
+	}
+
+	// Exchange the original query with the NS.
+	resp, _, err := r.client.Exchange(q, net.JoinHostPort(naA.A.String(), "53"))
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func (r *recursive) ns(
@@ -114,7 +193,7 @@ func (r *recursive) ns(
 	}
 
 	next := resp
-	if len(resp.Extra) > 0 || !resp.Authoritative {
+	if len(resp.Extra) > 0 {
 		var ip net.IP
 		rr := resp.Extra[rand.Intn(len(resp.Extra))]
 		switch rr := rr.(type) {
@@ -149,32 +228,67 @@ func (r *recursive) ns(
 	}
 
 	rrs := make([]dns.RR, 0, len(next.Extra))
-	nsIPs := map[string]map[uint16]dns.RR{}
+	nsIPs := map[string]map[uint16][]dns.RR{}
 
 	// NOTE: The A, and AAAA records for the specific name server
 	// responses also need to be stored if they're returned in the
 	// extra part of a response as well
 
 	for _, rr := range next.Extra {
-		if nsIPs[rr.Header().Name] == nil {
-			nsIPs[rr.Header().Name] = map[uint16]dns.RR{}
-		}
+		switch rr := rr.(type) {
+		case *dns.A:
+			if !r.ipv4 {
+				continue
+			}
 
-		nsIPs[rr.Header().Name][rr.Header().Rrtype] = rr
-
-		if r.ipv4 && rr.Header().Rrtype == dns.TypeA {
 			rrs = append(rrs, rr)
-		}
+			if _, ok := nsIPs[rr.Hdr.Name]; !ok {
+				nsIPs[rr.Hdr.Name] = map[uint16][]dns.RR{}
+			}
 
-		if r.ipv6 && rr.Header().Rrtype == dns.TypeAAAA {
+			nsIPs[rr.Hdr.Name][dns.TypeA] = append(
+				nsIPs[rr.Hdr.Name][dns.TypeA], rr)
+		case *dns.AAAA:
+			if !r.ipv6 {
+				continue
+			}
+
 			rrs = append(rrs, rr)
+			if _, ok := nsIPs[rr.Hdr.Name]; !ok {
+				nsIPs[rr.Hdr.Name] = map[uint16][]dns.RR{}
+			}
+
+			nsIPs[rr.Hdr.Name][dns.TypeAAAA] = append(
+				nsIPs[rr.Hdr.Name][dns.TypeAAAA], rr)
 		}
 	}
 
 	for k, v := range nsIPs {
-		for rrk, rr := range v {
-			spew.Dump(k, rrk, rr)
+		msg := &dns.Msg{
+			Question: []dns.Question{
+				{
+					Name:   k,
+					Qtype:  dns.TypeA,
+					Qclass: dns.ClassINET,
+				},
+			},
 		}
+
+		for rrk, rr := range v {
+			if rrk != dns.TypeA {
+				msg.Question[0].Qtype = rrk
+			}
+
+			msg.Answer = append(msg.Answer, rr...)
+		}
+
+		r.logger.DebugCtx(ctx, "adding record to addr cache",
+			slog.String("name", k),
+			slog.String("type", dns.Type(msg.Question[0].Qtype).String()),
+			slog.String("class", dns.Class(msg.Question[0].Qclass).String()),
+			slog.String("rrs", spew.Sdump(msg.Answer)))
+
+		r.addrCache.SetTTL(ctx, key(msg), msg, time.Second*time.Duration(ttl))
 	}
 
 	next.Extra = rrs

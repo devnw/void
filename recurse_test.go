@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"net"
 	"os"
 	"testing"
 	"time"
@@ -114,7 +113,7 @@ import (
 //}
 
 func Test_resolve(t *testing.T) {
-	name := "www.benjiv.com."
+	name := "go.benjiv.com."
 	ctx := context.Background()
 
 	zone, err := os.Open("named.root")
@@ -149,46 +148,53 @@ func Test_resolve(t *testing.T) {
 		ipv6: false,
 	}
 
-	auth, err := r.ns(ctx, name)
+	auth, err := r.resolve(ctx, &dns.Msg{
+		Question: []dns.Question{
+			{
+				Name:   name,
+				Qtype:  dns.TypeA,
+				Qclass: dns.ClassINET,
+			},
+		}})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	spew.Dump(auth)
 
-	// Pull the SOA record from the authority
-	soa, ok := auth.Ns[0].(*dns.SOA)
-	if !ok {
-		t.Fatal("no SOA record")
-	}
+	//// Pull the SOA record from the authority
+	//soa, ok := auth.Ns[0].(*dns.SOA)
+	//if !ok {
+	//	t.Fatal("no SOA record")
+	//}
 
-	spew.Dump(soa)
+	//spew.Dump(soa)
 
-	// Get the IP of the SOA record nameserver
-	ns, err := r.ns(ctx, soa.Ns)
-	if err != nil {
-		t.Fatal(err)
-	}
+	//// Get the IP of the SOA record nameserver
+	//ns, err := r.resolve(ctx, soa.Ns)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
 
-	spew.Dump(ns)
+	//spew.Dump(ns)
 
-	var ip net.IP
-	ip = auth.Extra[0].(*dns.A).A
+	//var ip net.IP
+	//ip = auth.Extra[0].(*dns.A).A
 
-	val, _, err := r.client.Exchange(
-		&dns.Msg{
-			Question: []dns.Question{
-				{
-					Name:   name,
-					Qtype:  dns.TypeA,
-					Qclass: dns.ClassINET,
-				},
-			},
-		}, net.JoinHostPort(ip.String(), "53"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	//val, _, err := r.client.Exchange(
+	//	&dns.Msg{
+	//		Question: []dns.Question{
+	//			{
+	//				Name:   name,
+	//				Qtype:  dns.TypeA,
+	//				Qclass: dns.ClassINET,
+	//			},
+	//		},
+	//	}, net.JoinHostPort(ip.String(), "53"),
+	//)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
 
-	spew.Dump(val)
+	//spew.Dump(val)
 }
