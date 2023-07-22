@@ -118,6 +118,8 @@ func (r *recursive) resolve(
 		return ns, nil
 	}
 
+	spew.Dump(ns)
+
 	// Check for an authoritative answer.
 	soa, ok := ns.Ns[0].(*dns.SOA)
 	if !ok {
@@ -137,8 +139,6 @@ func (r *recursive) resolve(
 	if err != nil {
 		return nil, err
 	}
-
-	spew.Dump(nsIP)
 
 	if len(nsIP.Answer) == 0 {
 		return nil, fmt.Errorf("no answer")
@@ -192,6 +192,48 @@ func (r *recursive) ns(
 		return nil, err
 	}
 
+	if len(resp.Extra) == 0 {
+		// Resolve the NS records.
+		for _, rr := range resp.Ns {
+			ns, ok := rr.(*dns.NS)
+			if !ok {
+				continue
+			}
+
+			slog.DebugCtx(ctx, "resolving NS",
+				slog.String("name", ns.Ns))
+
+			nsA, err := r.resolve(ctx, &dns.Msg{
+				Question: []dns.Question{
+					{
+						Name:   ns.Ns,
+						Qtype:  dns.TypeA,
+						Qclass: dns.ClassINET,
+					},
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			addrs := make([]net.IP, 0, len(nsA.Answer))
+			for _, rr := range nsA.Answer {
+				a, ok := rr.(*dns.A)
+				if !ok {
+					continue
+				}
+
+				addrs = append(addrs, a.A)
+			}
+
+			slog.DebugCtx(ctx, "resolved NS",
+				slog.String("name", ns.Ns),
+				slog.String("addrs", fmt.Sprintf("%v", addrs)))
+
+			resp.Extra = append(resp.Extra, nsA.Answer...)
+		}
+	}
+
 	next := resp
 	if len(resp.Extra) > 0 {
 		var ip net.IP
@@ -222,6 +264,28 @@ func (r *recursive) ns(
 
 	}
 
+	//if len(next.Extra) == 0 {
+	//	// TODO: Convert these to parallel in the future
+	//	for _, rr := range next.Ns {
+	//		nsR, ok := rr.(*dns.NS)
+	//		if !ok {
+	//			continue
+	//		}
+
+	//		// Check cache
+	//		r.logger.DebugCtx(ctx, "attempting to resolve secondary level NS",
+	//			slog.String("original name", name),
+	//			slog.String("ns", nsR.Ns))
+
+	//		ns, err := r.ns(ctx, nsR.Ns)
+	//		if err != nil {
+	//			return nil, err
+	//		}
+
+	//		nsRRS = append(nsRRS, ns.Answer...)
+	//	}
+	//}
+
 	ttl := DEFAULTTTL
 	if len(next.Answer) > 0 {
 		ttl = int(next.Answer[0].Header().Ttl)
@@ -234,7 +298,8 @@ func (r *recursive) ns(
 	// responses also need to be stored if they're returned in the
 	// extra part of a response as well
 
-	for _, rr := range next.Extra {
+	// Cache all of the non-NS records.
+	for _, rr := range append(next.Answer, next.Extra...) {
 		switch rr := rr.(type) {
 		case *dns.A:
 			if !r.ipv4 {
