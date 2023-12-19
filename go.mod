@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/miekg/dns v1.1.57
 	github.com/spf13/cobra v1.8.0
-	github.com/spf13/viper v1.18.1
+	github.com/spf13/viper v1.18.2
 	go.atomizer.io/stream v1.0.7
 	go.devnw.com/ttl v1.1.2
 	go.structs.dev/gen v1.0.1
