@@ -6,7 +6,7 @@ require (
 	github.com/miekg/dns v1.1.57
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
-	go.atomizer.io/stream v1.0.7
+	go.atomizer.io/stream v1.2.0
 	go.devnw.com/ttl v1.1.2
 	go.structs.dev/gen v1.0.1
 	go.uber.org/zap v1.26.0
@@ -27,6 +27,7 @@ require (
 	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	go.devnw.com/gen v1.1.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 	golang.org/x/mod v0.12.0 // indirect
