@@ -1,13 +1,21 @@
-void
-config.yaml
+.direnv/
+*cweb.log
+*.tmp
+.venv
+external/
 
+# outputs
+output.txt
 dist/
 
-*.hosts
+# build folders
+bin/
+ui/public/
+ui/build/
+ui/node_modules/
 
 # Removing Vendor
 vendor/
-testdata/remote
 
 .vscode/
 
@@ -24,6 +32,8 @@ testdata/remote
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 coverage.html
+coverage
+coverage.txt
 
 # ignore keyfiles
 *.crt
