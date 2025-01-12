@@ -14,16 +14,16 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       containers:
-      - name: void-container
-        image: ghcr.io/devnw/void:latest
-        ports:
-        - containerPort: 53
-          protocol: UDP
-        volumeMounts:
-        - name: void-storage
-          mountPath: /etc/void
+        - name: void-container
+          image: ghcr.io/devnw/void:latest
+          ports:
+            - containerPort: 53
+              protocol: UDP
+          volumeMounts:
+            - name: void-storage
+              mountPath: /etc/void
   volumes:
-  - name: void-storage
-    hostPath:
-      path: /etc/void
-      type: DirectoryOrCreate
+    - name: void-storage
+      hostPath:
+        path: /etc/void
+        type: DirectoryOrCreate

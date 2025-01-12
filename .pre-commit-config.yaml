@@ -1,37 +1,38 @@
 exclude: '^$'
-fail_fast: true 
+fail_fast: true
 repos:
-  -   repo: https://github.com/Yelp/detect-secrets
-      rev: v1.5.0
-      hooks:
-      -   id: detect-secrets
-          name: Detect secrets
-          language: python
-          entry: detect-secrets-hook
-          args: [
-            '--baseline', 
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: Detect secrets
+        language: python
+        entry: detect-secrets-hook
+        args:
+          [
+            '--baseline',
             '.secrets.baseline',
             '--exclude-files',
             '(_test\.go$|/testdata/|gomod2nix.toml)',
-            ]
+          ]
   - repo: https://github.com/mrtazz/checkmake.git
     rev: 0.2.2
     hooks:
-    -   id: checkmake
-  -   repo: https://github.com/pre-commit/pre-commit-hooks
-      rev: v5.0.0
-      hooks:
-      -   id: check-json
-      -   id: check-merge-conflict
-      -   id: check-yaml
-      -   id: end-of-file-fixer
-      -   id: check-symlinks
+      - id: checkmake
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: check-symlinks
   - repo: https://github.com/markdownlint/markdownlint
     rev: v0.12.0
     hooks:
-    -   id: markdownlint
+      - id: markdownlint
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v3.31.0
+    rev: v4.1.0
     hooks:
       - id: commitizen
       - id: commitizen-branch

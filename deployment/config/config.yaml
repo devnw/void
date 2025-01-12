@@ -54,13 +54,13 @@
 #
 # Void supports either local or remote files (urls beginning with http:// or
 # https://). Remote files are cached locally in the configured cache directory.
-# 
+#
 # Defaults
 # -------
 # The default configuration is:
 #
 # Port: 53
-# 
+#
 # Upstream is Cloudflare TLS encrypted DNS:
 # - tcp-tls://1.1.1.1:853
 # - tcp-tls://1.0.0.1:853
@@ -70,17 +70,17 @@
 # Logger configures the log location and log rotation settings.
 #
 # Uses configuration from https://github.com/natefinch/lumberjack/tree/v2.0
-logger: 
-    # Path to log file or :stdout: for stdout
-    # Leave empty to log to stderr
-    filename: "/var/log/void/void.log"
-    level: "error" # debug, info, warn, error, fatal
-    format: "json" # or "console"
-    maxage: 30
-    maxsize: 100 # MB
-    maxbackups: 10
-    localtime: true
-    compress: true
+logger:
+  # Path to log file or :stdout: for stdout
+  # Leave empty to log to stderr
+  filename: '/var/log/void/void.log'
+  level: 'error' # debug, info, warn, error, fatal
+  format: 'json' # or "console"
+  maxage: 30
+  maxsize: 100 # MB
+  maxbackups: 10
+  localtime: true
+  compress: true
 
 verbose: false
 
@@ -92,13 +92,13 @@ dns:
   #]
   local:
     #- path: "/etc/void/local.hosts"
-    
+
     #- path: "/etc/void/local.regex"
-    #  format: regex 
-    
+    #  format: regex
+
     #- path: "/etc/void/local.wild"
     #  format: wildcard
-    
+
     #- path: "/etc/void/local.lists"
     #  lists: true
     #  format: regex

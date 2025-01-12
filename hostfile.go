@@ -249,7 +249,7 @@ func GetHost(ctx context.Context, in <-chan string) (<-chan *Host, error) {
 	s := stream.Scaler[string, *Host]{
 		Wait: time.Nanosecond,
 		Life: time.Millisecond,
-		Fn: func(ctx context.Context, line string) (*Host, bool) {
+		Fn: func(_ context.Context, line string) (*Host, bool) {
 			var comment string
 			commentIndex := strings.Index(line, "#")
 			if commentIndex != -1 {

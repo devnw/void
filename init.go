@@ -20,7 +20,7 @@ var (
 const (
 	defaultConfigDir  = "/etc/void"
 	defaultConfigName = "config"
-	defaultPort       = 53
+	defaultPort       = uint16(53)
 )
 
 //nolint:gochecknoglobals // necessary for cobra root command

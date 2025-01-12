@@ -1,3 +1,4 @@
+void
 .direnv/
 *cweb.log
 *.tmp
@@ -12,7 +13,7 @@ dist/
 bin/
 ui/public/
 ui/build/
-ui/node_modules/
+node_modules/
 
 # Removing Vendor
 vendor/

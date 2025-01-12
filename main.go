@@ -84,6 +84,14 @@ func exec(cmd *cobra.Command, _ []string) {
 		)
 	}
 
+	if viper.GetUint("dns.port") < 1 || viper.GetUint("dns.port") > 65535 {
+		logger.Fatalw(
+			"invalid port",
+			"port", viper.GetUint("dns.port"),
+		)
+	}
+
+	//nolint:gosec // this is a port number, len check above
 	port := uint16(viper.GetUint("dns.port"))
 	upstreams := viper.GetStringSlice("dns.upstream")
 

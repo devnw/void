@@ -1,40 +1,33 @@
-all: build tidy lint fmt test
-
 #-------------------------------------------------------------------------
 # Variables
 # ------------------------------------------------------------------------
 env=CGO_ENABLED=1
+op= op run --env-file="./.env" -- 
+SHELL := $(shell which bash)
+fuzzsh=https://raw.githubusercontent.com/devnw/workflows/refs/heads/main/fuzz.sh
 
-test: lint 
-	CGO_ENABLED=1 go test -cover -failfast -race ./...
+#-------------------------------------------------------------------------
+# Custom Targets
+# ------------------------------------------------------------------------
+release-dev:
+	$(env) $(op) goreleaser release --clean --snapshot
 
-fuzz:
-	@fuzzTime=$${FUZZ_TIME:-10}; \
-	files=$$(grep -r --include='**_test.go' --files-with-matches 'func Fuzz' .); \
-	for file in $$files; do \
-		funcs=$$(grep -o 'func Fuzz\w*' $$file | sed 's/func //'); \
-		for func in $$funcs; do \
-			echo "Fuzzing $$func in $$file"; \
-			parentDir=$$(dirname $$file); \
-			go test $$parentDir -run=$$func -fuzz=$$func -fuzztime=$${fuzzTime}s; \
-			if [ $$? -ne 0 ]; then \
-				echo "Fuzzing $$func in $$file failed"; \
-				exit 1; \
-			fi; \
-		done; \
-	done
+#-------------------------------------------------------------------------
+# Standard Targets
+# ------------------------------------------------------------------------
+pre-commit: fmt update upgrade tidy lint build test
 
-bench:
-	go test -bench=. -benchmem ./...
+gomod2nix:
+	gomod2nix generate
 
-lint: tidy
+detect-secrets-baseline:
+	detect-secrets scan > .secrets.baseline
+
+lint:
 	golangci-lint run
-	pre-commit run --all-files	
 
-build: update tidy 
+build: gomod2nix
 	$(env) go build ./...
-
-release-dev: build-ci
 
 upgrade:
 	pre-commit autoupdate
@@ -43,35 +36,55 @@ upgrade:
 update:
 	git submodule update --recursive
 
-fmt:
+test: 
+	CGO_ENABLED=1 go test -v -cover -failfast -race ./...
+
+fuzz:
+	curl -fsSL $(fuzzsh) | $(SHELL)
+
+bench:
+	go test -bench=. -benchmem ./...
+
+fmt: 
+	prettier --config ./.pretterrc.yaml --write .
+	find . -type f -name "*.nix" -exec nixfmt {} +
+	goimports -w .
 	gofmt -s -w .
 
 tidy: fmt
 	go mod tidy
 
+release: 
+	if [ -z "$(tag)" ]; then echo "tag is required"; exit 1; fi
+	git tag -a ${tag} -m "${tag}"
+	git push origin ${tag}
+
 clean: 
 	rm -rf dist
-	rm -rf coverage
+	rm -rf out
 
 #-------------------------------------------------------------------------
 # CI targets
 #-------------------------------------------------------------------------
-test-ci: tidy lint
+build-ci: lint
+	$(env) go build ./...
+
+test-ci: build-ci 
 	CGO_ENABLED=1 go test \
 				-cover \
 				-covermode=atomic \
 				-coverprofile=coverage.txt \
 				-failfast \
 				-race ./...
-	make fuzz FUZZ_TIME=10
+	make fuzz
 
-build-ci: test-ci
-	$(env) go build ./...
 
 bench-ci: test-ci
-	go test -bench=. ./... | tee output.txt
+	go test -bench=. ./... | tee bench-output.txt
 
-release-ci: build-ci	
+
+release-ci: bench-ci
+	$(env) $(op) goreleaser release --clean
 
 #-------------------------------------------------------------------------
 # Force targets
@@ -83,4 +96,4 @@ FORCE:
 # Phony targets
 #-------------------------------------------------------------------------
 
-.PHONY: build test lint fuzz
+.PHONY: build test lint fuzz all clean FORCE bench fmt tidy release

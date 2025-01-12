@@ -54,10 +54,12 @@ func (l *Local) Intercept(
 
 	req.r.Answer = append(req.r.Answer, &dns.A{
 		Hdr: dns.RR_Header{
-			Name:     req.r.Question[0].Name,
-			Rrtype:   dns.TypeA,
-			Class:    dns.ClassINET,
-			Ttl:      DEFAULTTTL,
+			Name:   req.r.Question[0].Name,
+			Rrtype: dns.TypeA,
+			Class:  dns.ClassINET,
+			Ttl:    DEFAULTTTL,
+
+			//nolint:gosec // this is a DNS record
 			Rdlength: uint16(len(record.IP)),
 		},
 		A: record.IP,

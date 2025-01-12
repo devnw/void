@@ -119,7 +119,7 @@ func Up(
 				return nil, fmt.Errorf("invalid port [%s]", matches[3])
 			}
 
-			port = newport
+			port = uint16(newport)
 		}
 
 		// load the appropriate tls configuration
@@ -135,7 +135,7 @@ func Up(
 		u := &Upstream{
 			proto:     proto,
 			address:   net.ParseIP(matches[2]),
-			port:      uint16(port),
+			port:      port,
 			logger:    logger,
 			reconnect: time.Minute,
 			client: &dns.Client{
@@ -205,7 +205,7 @@ func (u *Upstream) Intercept(
 ) (s *Request, cont bool) {
 	select {
 	case <-ctx.Done():
-		return
+		return s, cont
 	// case conn, ok := <-u.conn:
 	// if !ok {
 	//	return
@@ -234,7 +234,7 @@ func (u *Upstream) Intercept(
 				"error", err,
 				"record", req.String(),
 			)
-			return
+			return s, cont
 		}
 
 		err = req.w.WriteMsg(resp)
@@ -255,6 +255,6 @@ func (u *Upstream) Intercept(
 			"record", req.String(),
 		)
 
-		return
+		return s, cont
 	}
 }

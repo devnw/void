@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	stream "go.atomizer.io/stream"
-	"go.structs.dev/gen"
+	"go.atomizer.io/stream"
+	"go.devnw.com/gen"
 )
 
 // ReadFiles reads the files at the path provided
@@ -25,7 +25,7 @@ func ReadFiles(
 		Wait: time.Nanosecond,
 		Life: time.Millisecond,
 		Fn: func(
-			ctx context.Context,
+			_ context.Context,
 			path string,
 		) (io.ReadCloser, bool) {
 			data, err := os.Open(path)
