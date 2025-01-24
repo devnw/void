@@ -5,7 +5,7 @@ go 1.23
 toolchain go1.23.1
 
 require (
-	github.com/miekg/dns v1.1.62
+	github.com/miekg/dns v1.1.63
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
 	go.atomizer.io/stream v1.2.0
